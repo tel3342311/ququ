@@ -173,9 +173,7 @@ impl Indicator {
         window
             .set_ignore_cursor_events(!classic)
             .map_err(|e| e.to_string())?;
-        window
-            .set_always_on_top(true)
-            .map_err(|e| e.to_string())?;
+        window.set_always_on_top(true).map_err(|e| e.to_string())?;
         window
             .set_skip_taskbar(!classic)
             .map_err(|e| e.to_string())?;

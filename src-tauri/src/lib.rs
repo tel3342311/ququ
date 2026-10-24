@@ -606,7 +606,6 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         app.state::<AppState>().interface.lock().unwrap().mode == interface::Mode::Compact,
         None::<&str>,
     )?;
-    let restore = MenuItem::with_id(app, "restore", "显示主界面", true, None::<&str>)?;
     let show = MenuItem::with_id(app, "show", "开始/停止听写", true, None::<&str>)?;
     let cancel = MenuItem::with_id(app, "cancel", "取消听写", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "设置", true, None::<&str>)?;
@@ -615,7 +614,7 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let menu = Menu::with_items(
         app,
         &[
-            &restore, &classic, &compact, &show, &cancel, &settings, &history, &quit,
+            &classic, &compact, &show, &cancel, &settings, &history, &quit,
         ],
     )?;
     app.manage(menu.clone());
@@ -631,16 +630,6 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
                     let _ = logging::write(&state.data_dir.join("logs"), "warn", &error);
                     if let Some(tray) = app.tray_by_id("ququ") {
                         let _ = tray.set_tooltip(Some(format!("蛐蛐：{error}")));
-                    }
-                }
-            }
-            "restore" => {
-                if let Some(w) = app.get_webview_window("main") {
-                    let _ = w.show();
-                    if app.state::<AppState>().interface.lock().unwrap().mode
-                        == interface::Mode::Classic
-                    {
-                        let _ = w.set_focus();
                     }
                 }
             }
@@ -700,8 +689,15 @@ fn set_interface_mode(app: &AppHandle, name: &str) -> Result<(), String> {
     let mode = interface::Mode::parse(name)?;
     let state = app.state::<AppState>();
     let mut current = state.interface.lock().map_err(|e| e.to_string())?;
-    current.allow_switch()?;
-    if current.mode != mode {
+    let selection = current.select(mode)?;
+    if selection == interface::Selection::Reveal {
+        let window = app
+            .get_webview_window("main")
+            .ok_or("Dictation window unavailable")?;
+        window.unminimize().map_err(|e| e.to_string())?;
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+    } else if selection == interface::Selection::Switch {
         let previous = current.mode;
         if let Err(error) = state.indicator.apply_mode(app, mode) {
             let _ = state.indicator.apply_mode(app, previous);
