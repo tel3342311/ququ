@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop",
+  "description": "Only QuQu windows may use native events and window dragging.",
+  "windows": ["main", "control", "history", "settings"],
+  "permissions": ["core:event:default", "core:window:allow-start-dragging"]
+}

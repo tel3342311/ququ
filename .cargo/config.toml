@@ -1,0 +1,6 @@
+[target.x86_64-pc-windows-msvc]
+# sherpa-onnx's published static archives use /MT.
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

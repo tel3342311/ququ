@@ -128,7 +128,7 @@ const TextDisplay = ({ originalText, processedText, isProcessing, onCopy, onExpo
       {originalText && (
         <div className="bg-slate-100/80 dark:bg-gray-800/80 rounded-lg p-3 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="chinese-content text-gray-800 dark:text-gray-200 flex-1 truncate pr-2">
+            <p className="chinese-content text-foreground flex-1 truncate pr-2">
               {originalText}
             </p>
             <button
@@ -183,7 +183,7 @@ const TextDisplay = ({ originalText, processedText, isProcessing, onCopy, onExpo
               <span className="status-text">AI正在优化文本...</span>
             </div>
           ) : (
-            <p className="chinese-content leading-loose fade-in text-gray-800 dark:text-gray-200">
+            <p className="chinese-content leading-loose fade-in text-foreground">
               {processedText}
             </p>
           )}

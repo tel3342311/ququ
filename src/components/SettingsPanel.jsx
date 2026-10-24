@@ -3,6 +3,7 @@ import { Mic, Shield, Settings } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
 import PermissionCard from "./ui/permission-card";
 import { toast } from "sonner";
+import NativeSpeechSettings from './NativeSpeechSettings';
 
 const SettingsPanel = ({ onClose }) => {
   const showAlert = (alert) => {
@@ -39,6 +40,7 @@ const SettingsPanel = ({ onClose }) => {
 
         {/* 内容区域 */}
         <div className="p-6 space-y-8">
+          <NativeSpeechSettings />
           {/* 权限部分 */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 chinese-title">

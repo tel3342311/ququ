@@ -1,3 +1,4 @@
+import './desktop/init.js';
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
@@ -5,6 +6,9 @@ import { toast, Toaster } from "sonner";
 import { Settings, Save, Eye, EyeOff, X, Loader2, TestTube, CheckCircle, XCircle, Mic, Shield } from "lucide-react";
 import { usePermissions } from "./hooks/usePermissions";
 import PermissionCard from "./components/ui/permission-card";
+import NativeSpeechSettings from './components/NativeSpeechSettings';
+import HotkeySettings from './components/HotkeySettings';
+import InterfaceSettings from './components/InterfaceSettings';
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState({
@@ -211,6 +215,9 @@ const SettingsPage = () => {
       {/* 主要内容 - 可滚动 */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-2xl mx-auto p-6 pb-8">
+          <div className="mb-6"><NativeSpeechSettings /></div>
+          <div className="mb-6"><HotkeySettings /></div>
+          {window.electronAPI?.runtime==='tauri'&&<div className="mb-6"><InterfaceSettings /></div>}
           {/* 权限管理部分 */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
             <div className="p-6">

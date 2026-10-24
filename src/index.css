@@ -1,7 +1,45 @@
 @import "tailwindcss";
+@config "../tailwind.config.js";
+@custom-variant dark (&:where(.dark, .dark *));
+
+html.compact-dictation, .compact-dictation body, .compact-dictation #root {
+  background: transparent;
+  overflow: hidden;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+.recording-indicator {
+  width: 160px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 7px;
+  background: hsl(var(--card));
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
+.recording-indicator.is-recording { opacity: 1; }
+.recording-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: #ef4444; }
+.recording-indicator.is-recording .recording-dot { animation: recording-breathe 1.8s ease-in-out infinite; }
+.recording-label { color: hsl(var(--foreground)); font-size: 13px; line-height: 20px; font-weight: 500; white-space: nowrap; }
+@keyframes recording-breathe {
+  0%, 100% { opacity: .55; transform: scale(.9); box-shadow: 0 0 0 0 #ef444400; }
+  50% { opacity: 1; transform: scale(1.12); box-shadow: 0 0 0 4px #ef444425; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .recording-indicator { transition: none; }
+  .recording-indicator.is-recording .recording-dot { animation: none; }
+}
 
 @layer base {
   :root {
+    color-scheme: light;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -25,6 +63,7 @@
   }
 
   .dark {
+    color-scheme: dark;
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
@@ -118,17 +157,17 @@ html, body {
 
 /* 次要文本 - 对比度4.5:1 */
 .text-secondary {
-  color: #4b5563; /* 对比度 7.0:1 */
+  color: hsl(var(--muted-foreground));
 }
 
 /* 提示文本 - 对比度4.5:1 */
 .text-muted {
-  color: #6b7280; /* 对比度 4.5:1 */
+  color: hsl(var(--muted-foreground));
 }
 
 /* 强调文本 - 高对比度 */
 .text-emphasis {
-  color: #111827; /* 对比度 15.3:1 */
+  color: hsl(var(--foreground));
   font-weight: 600;
 }
 
@@ -546,3 +585,12 @@ html, body {
     transition: none;
   }
 }
+
+/* The native Classic view keeps the original microphone + transcript layout. */
+.native-classic { min-height:100vh; padding:20px; background:linear-gradient(140deg,hsl(var(--background)),hsl(var(--secondary))); }
+.classic-tool { padding:8px; border-radius:10px; color:hsl(var(--muted-foreground)); display:inline-flex; align-items:center; justify-content:center; }
+.classic-tool:hover { background:hsl(var(--secondary)); color:hsl(var(--foreground)); }
+.classic-tool:disabled { opacity:.4; }
+.classic-mic { display:flex; align-items:center; justify-content:center; width:64px; height:64px; margin:0 auto; border-radius:50%; background:#3b82f6; color:white; border:2px solid #93c5fd; box-shadow:0 5px 15px #0002; }
+.classic-mic.is-recording { background:#dc2626; border-color:#fca5a5; }
+.classic-mic:disabled { opacity:.5; }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { applyModelProgress, applyModelReady } from '../desktop/model-state.mjs';
 
 // 检查是否为控制面板或设置页面
 const isControlPanelOrSettings = () => {
@@ -258,11 +259,7 @@ export const useModelStatus = () => {
   useEffect(() => {
     if (window.electronAPI && window.electronAPI.onModelDownloadProgress) {
       const unsubscribe = window.electronAPI.onModelDownloadProgress((event, progress) => {
-        setModelStatus(prev => ({
-          ...prev,
-          downloadProgress: progress.overall_progress || progress.progress || 0,
-          stage: 'downloading'
-        }));
+        setModelStatus(prev => applyModelProgress(prev, progress));
       });
 
       return unsubscribe;
@@ -274,13 +271,7 @@ export const useModelStatus = () => {
     if (window.electronAPI && window.electronAPI.onProcessingUpdate) {
       const unsubscribe = window.electronAPI.onProcessingUpdate((event, data) => {
         if (data.type === 'model_initialization') {
-          setModelStatus(prev => ({
-            ...prev,
-            isLoading: data.isLoading,
-            isReady: data.isReady,
-            progress: data.progress || prev.progress,
-            stage: data.isReady ? 'ready' : 'loading'
-          }));
+          setModelStatus(prev => applyModelReady(prev, data));
         }
       });
 

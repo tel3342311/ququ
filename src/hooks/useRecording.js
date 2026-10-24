@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { recordingOptions } from '../desktop/audio.mjs';
 import { useModelStatus } from './useModelStatus';
 
 /**
@@ -58,9 +59,7 @@ export const useRecording = () => {
       audioChunksRef.current = [];
 
       // 创建MediaRecorder
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      const mediaRecorder = new MediaRecorder(stream, recordingOptions(MediaRecorder));
 
       mediaRecorderRef.current = mediaRecorder;
 
@@ -78,7 +77,7 @@ export const useRecording = () => {
         try {
           // 创建音频Blob
           const audioBlob = new Blob(audioChunksRef.current, {
-            type: 'audio/webm;codecs=opus'
+            type: mediaRecorder.mimeType
           });
 
           setAudioData(audioBlob);

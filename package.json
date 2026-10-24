@@ -28,7 +28,12 @@
     "dist": "npm run prepare:python:embedded && npm run build:renderer && electron-builder",
     "lint": "cd src && eslint .",
     "preview": "cd src && vite preview",
-    "clean": "node cleanup.js && rm -rf python"
+    "clean": "node cleanup.js && rm -rf python",
+    "dev:rust": "node scripts/run-tauri.cjs dev",
+    "build:rust": "node scripts/run-tauri.cjs build",
+    "test:desktop": "node --test src/desktop/*.test.mjs",
+    "test:rust-ui": "node scripts/test-native-ui.cjs",
+    "test:theme": "node scripts/test-theme.cjs"
   },
   "keywords": [
     "dictation",
@@ -50,6 +55,7 @@
     "@eslint/js": "^9.25.0",
     "@tailwindcss/postcss": "^4.1.13",
     "@tailwindcss/vite": "^4.1.10",
+    "@tauri-apps/cli": "^2.12.4",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
@@ -63,6 +69,7 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
     "node-gyp": "^11.4.2",
+    "playwright-core": "^1.64.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.10",
     "vite": "^6.3.5"
@@ -75,6 +82,7 @@
     "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.12",
+    "@tauri-apps/api": "^2.12.4",
     "asynckit": "^0.4.0",
     "axios": "^1.6.0",
     "better-sqlite3": "11.10.0",

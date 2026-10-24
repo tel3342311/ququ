@@ -1,12 +1,20 @@
+import './desktop/init.js'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import NativeDictation from './components/NativeDictation.jsx'
 import './index.css'
 import { Toaster } from './components/ui/sonner'
 
 // 检查是否在Electron环境中
 const isElectron = () => {
   return typeof window !== 'undefined' && window.electronAPI
+}
+
+function MainView({LegacyApp=App}) {
+  const params=new URLSearchParams(window.location.search);
+  return window.electronAPI?.runtime==='tauri'&&!params.has('panel')&&!params.has('page')
+    ? <NativeDictation /> : <LegacyApp />;
 }
 
 // 错误边界组件
@@ -136,19 +144,6 @@ function initializeApp() {
   // 设置中文语言环境
   document.documentElement.lang = 'zh-CN'
   
-  // 添加系统主题检测
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    document.documentElement.classList.add('dark')
-  }
-
-  // 监听系统主题变化
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    if (e.matches) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  })
 }
 
 // 初始化应用
@@ -160,7 +155,7 @@ const root = ReactDOM.createRoot(document.getElementById('root'))
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <MainView />
       <Toaster />
     </ErrorBoundary>
   </React.StrictMode>
@@ -175,7 +170,7 @@ if (process.env.NODE_ENV === 'development') {
         root.render(
           <React.StrictMode>
             <ErrorBoundary>
-              <NextApp />
+              <MainView LegacyApp={NextApp} />
             </ErrorBoundary>
           </React.StrictMode>
         )

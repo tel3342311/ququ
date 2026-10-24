@@ -1,0 +1,32 @@
+[package]
+name = "ququ-desktop"
+version = "1.0.0"
+edition = "2021"
+description = "QuQu native desktop dictation"
+license = "MIT"
+
+[lib]
+name = "ququ_desktop"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.37", features = ["bundled", "backup"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+dirs = "6"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+arboard = "3"
+enigo = "0.6"
+ququ-speech = { path = "../crates/ququ-speech" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Threading", "Win32_System_LibraryLoader", "Win32_Graphics_Gdi"] }
+
+[dev-dependencies]
+tempfile = "3"

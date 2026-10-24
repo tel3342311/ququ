@@ -263,3 +263,23 @@ uv sync  # 会自动下载 Python 3.11
 ## 📄 许可证
 
 本项目采用 [Apache License 2.0](LICENSE) 许可证。
+# Rust / Tauri 迁移
+
+原生版本保留 React，使用 Rust 桌面服务与 SenseVoice / Paraformer 本地推理。启动：`npm run dev:rust`。开发、模型下载和验证说明见 [Rust desktop development](docs/rust-desktop.md)。原有 Electron 命令暂时保留。
+
+## Windows / macOS 安装包部署
+
+完整步骤见 [Deployment README — Windows & macOS](docs/DEPLOYMENT.md)，包括构建环境、安装包路径、签名、公证、麦克风权限、模型下载和升级。
+
+```powershell
+# 在 Windows 上生成 Rust/Tauri NSIS 安装包
+npm run build:rust
+```
+
+```sh
+# 在 Mac 上生成 Apple Silicon 的 .app 和 .dmg
+npm run build:rust -- --config src-tauri/tauri.macos.conf.json --target aarch64-apple-darwin
+```
+
+Windows 原生应用已验证；macOS 的构建配置已提供，仍需在真实 Mac 上验证打包和运行。以上命令用于 Rust 版本，原有 `build:win` / `build:mac` 仍属于 Electron/Python 版本。
+
