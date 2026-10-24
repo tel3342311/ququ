@@ -256,6 +256,9 @@ impl Indicator {
             }
         }
     }
+    pub fn target_window(&self) -> isize {
+        self.target.load(Ordering::Acquire)
+    }
     pub fn invalidate_paste(&self) {
         self.paste_epoch.fetch_add(1, Ordering::AcqRel);
     }
