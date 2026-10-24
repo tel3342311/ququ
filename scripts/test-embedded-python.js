@@ -1,11 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const pythonPaths = require('../src/helpers/pythonPaths');
 
 class EmbeddedPythonTester {
   constructor() {
     this.pythonDir = path.join(__dirname, '..', 'python');
-    this.pythonPath = path.join(this.pythonDir, 'bin', 'python3.11');
+    this.pythonPath = pythonPaths.getExecutable(this.pythonDir);
   }
 
   async runTests() {
@@ -142,7 +143,7 @@ class EmbeddedPythonTester {
       const env = {
         ...process.env,
         PYTHONHOME: this.pythonDir,
-        PYTHONPATH: path.join(this.pythonDir, 'lib', 'python3.11', 'site-packages'),
+        PYTHONPATH: pythonPaths.getSitePackages(this.pythonDir),
         PYTHONDONTWRITEBYTECODE: '1',
         PYTHONIOENCODING: 'utf-8',
         PYTHONUNBUFFERED: '1'

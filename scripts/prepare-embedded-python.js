@@ -6,6 +6,7 @@ const { createWriteStream } = require('fs');
 const { pipeline } = require('stream');
 const { promisify } = require('util');
 const tar = require('tar');
+const pythonPaths = require('../src/helpers/pythonPaths');
 
 const pipelineAsync = promisify(pipeline);
 
@@ -30,7 +31,7 @@ class EmbeddedPythonBuilder {
           console.log(`   大小: ${existingInfo.size.mb}MB (${existingInfo.size.files} 个文件)`);
           
           // 验证关键依赖是否完整
-          const pythonPath = path.join(this.pythonDir, 'bin', 'python3.11');
+          const pythonPath = pythonPaths.getExecutable(this.pythonDir);
           const isValid = await this.validateExistingEnvironment(pythonPath);
           
           if (isValid) {
@@ -76,7 +77,10 @@ class EmbeddedPythonBuilder {
 
   async downloadPythonRuntime() {
     const arch = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
-    const filename = `cpython-${this.pythonVersion}+${this.buildDate}-${arch}-apple-darwin-install_only.tar.gz`;
+    const target = pythonPaths.isWindows
+      ? `${arch}-pc-windows-msvc-shared`
+      : `${arch}-apple-darwin`;
+    const filename = `cpython-${this.pythonVersion}+${this.buildDate}-${target}-install_only.tar.gz`;
     const url = `https://github.com/indygreg/python-build-standalone/releases/download/${this.buildDate}/${filename}`;
     const tarPath = path.join(this.pythonDir, 'python.tar.gz');
 
@@ -146,8 +150,8 @@ class EmbeddedPythonBuilder {
   }
 
   async installDependencies() {
-    const pythonPath = path.join(this.pythonDir, 'bin', 'python3.11');
-    const sitePackagesPath = path.join(this.pythonDir, 'lib', 'python3.11', 'site-packages');
+    const pythonPath = pythonPaths.getExecutable(this.pythonDir);
+    const sitePackagesPath = pythonPaths.getSitePackages(this.pythonDir);
 
     console.log('📦 安装Python依赖...');
 
@@ -191,8 +195,8 @@ class EmbeddedPythonBuilder {
           PYTHONUNBUFFERED: '1',
           PIP_NO_CACHE_DIR: '1',
           // 确保库路径正确
-          LD_LIBRARY_PATH: path.join(this.pythonDir, 'lib'),
-          DYLD_LIBRARY_PATH: path.join(this.pythonDir, 'lib'), // macOS
+          LD_LIBRARY_PATH: pythonPaths.getLibDir(this.pythonDir),
+          DYLD_LIBRARY_PATH: pythonPaths.getLibDir(this.pythonDir), // macOS
         };
         
         // 清除可能干扰的环境变量
@@ -225,8 +229,8 @@ class EmbeddedPythonBuilder {
             PYTHONIOENCODING: 'utf-8',
             PYTHONUNBUFFERED: '1',
             PIP_NO_CACHE_DIR: '1',
-            LD_LIBRARY_PATH: path.join(this.pythonDir, 'lib'),
-            DYLD_LIBRARY_PATH: path.join(this.pythonDir, 'lib'),
+            LD_LIBRARY_PATH: pythonPaths.getLibDir(this.pythonDir),
+            DYLD_LIBRARY_PATH: pythonPaths.getLibDir(this.pythonDir),
           };
           
           delete installEnv.PYTHONUSERBASE;
@@ -253,7 +257,7 @@ class EmbeddedPythonBuilder {
     console.log('🔍 验证依赖安装...');
     
     const criticalDeps = ['numpy', 'torch', 'librosa', 'funasr'];
-    const sitePackagesPath = path.join(this.pythonDir, 'lib', 'python3.11', 'site-packages');
+    const sitePackagesPath = pythonPaths.getSitePackages(this.pythonDir);
     
     for (const dep of criticalDeps) {
       try {
@@ -266,8 +270,8 @@ class EmbeddedPythonBuilder {
           PYTHONIOENCODING: 'utf-8',
           PYTHONUNBUFFERED: '1',
           // 确保库路径正确
-          LD_LIBRARY_PATH: path.join(this.pythonDir, 'lib'),
-          DYLD_LIBRARY_PATH: path.join(this.pythonDir, 'lib'), // macOS
+          LD_LIBRARY_PATH: pythonPaths.getLibDir(this.pythonDir),
+          DYLD_LIBRARY_PATH: pythonPaths.getLibDir(this.pythonDir), // macOS
         };
         
         // 清除可能干扰的环境变量
@@ -301,7 +305,7 @@ class EmbeddedPythonBuilder {
       
       // 检查关键依赖是否可用
       const criticalDeps = ['numpy', 'torch', 'librosa', 'funasr'];
-      const sitePackagesPath = path.join(this.pythonDir, 'lib', 'python3.11', 'site-packages');
+      const sitePackagesPath = pythonPaths.getSitePackages(this.pythonDir);
       
       // 构建环境变量
       const verifyEnv = {
@@ -311,8 +315,8 @@ class EmbeddedPythonBuilder {
         PYTHONDONTWRITEBYTECODE: '1',
         PYTHONIOENCODING: 'utf-8',
         PYTHONUNBUFFERED: '1',
-        LD_LIBRARY_PATH: path.join(this.pythonDir, 'lib'),
-        DYLD_LIBRARY_PATH: path.join(this.pythonDir, 'lib'),
+        LD_LIBRARY_PATH: pythonPaths.getLibDir(this.pythonDir),
+        DYLD_LIBRARY_PATH: pythonPaths.getLibDir(this.pythonDir),
       };
       
       // 清除可能干扰的环境变量
@@ -392,7 +396,7 @@ class EmbeddedPythonBuilder {
   }
 
   async getEmbeddedPythonInfo() {
-    const pythonPath = path.join(this.pythonDir, 'bin', 'python3.11');
+    const pythonPath = pythonPaths.getExecutable(this.pythonDir);
     
     if (!fs.existsSync(pythonPath)) {
       return null;

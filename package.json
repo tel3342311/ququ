@@ -139,7 +139,12 @@
       "node_modules/**/*better-sqlite3*/**/*",
       "node_modules/**/*bindings*/**/*"
     ],
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.productivity",
       "icon": "assets/icon.icns",
       "hardenedRuntime": true,
@@ -150,8 +155,27 @@
         "teamId": "7MTHK6DGS4"
       }
     },
+    "dmg": {
+      "title": "${productName} ${version}"
+    },
     "win": {
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false
     },
     "linux": {
       "icon": "assets/icon.png",

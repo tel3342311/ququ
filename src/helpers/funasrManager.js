@@ -4,6 +4,7 @@ const path = require("path");
 const crypto = require("crypto");
 const os = require("os");
 const PythonInstaller = require("./pythonInstaller");
+const pythonPaths = require("./pythonPaths");
 const { runCommand, TIMEOUTS } = require("../utils/process");
 
 // 简单的全局缓存，避免频繁检查
@@ -65,16 +66,18 @@ class FunASRManager {
   getEmbeddedPythonPath() {
     // 获取嵌入式Python路径
     if (process.env.NODE_ENV === "development") {
-      return path.join(__dirname, "..", "..", "python", "bin", "python3.11");
+      return pythonPaths.getExecutable(path.join(__dirname, "..", "..", "python"));
     } else {
-      return path.join(
-        process.resourcesPath,
-        "app.asar.unpacked",
-        "python",
-        "bin",
-        "python3.11"
+      return pythonPaths.getExecutable(
+        path.join(process.resourcesPath, "app.asar.unpacked", "python")
       );
     }
+  }
+
+  getEmbeddedPythonHome() {
+    const exe = this.getEmbeddedPythonPath();
+    // Windows: python.exe 位于根目录；其他平台位于 bin/ 下
+    return pythonPaths.isWindows ? path.dirname(exe) : path.dirname(path.dirname(exe));
   }
 
   setupIsolatedEnvironment() {
@@ -84,8 +87,8 @@ class FunASRManager {
     
     if (isUsingEmbedded) {
       // 使用嵌入式Python时设置完全隔离的环境变量
-      const pythonHome = path.dirname(path.dirname(embeddedPythonPath));
-      const sitePackages = path.join(pythonHome, 'lib', 'python3.11', 'site-packages');
+      const pythonHome = this.getEmbeddedPythonHome();
+      const sitePackages = pythonPaths.getSitePackages(pythonHome);
       
       process.env.PYTHONHOME = pythonHome;
       process.env.PYTHONPATH = sitePackages;
@@ -143,13 +146,13 @@ class FunASRManager {
     
     if (isUsingEmbedded) {
       // 使用嵌入式Python时的完整隔离环境
-      const pythonHome = path.dirname(path.dirname(embeddedPythonPath));
-      const sitePackages = path.join(pythonHome, 'lib', 'python3.11', 'site-packages');
+      const pythonHome = this.getEmbeddedPythonHome();
+      const sitePackages = pythonPaths.getSitePackages(pythonHome);
       
       env.PYTHONHOME = pythonHome;
       env.PYTHONPATH = sitePackages;
-      env.LD_LIBRARY_PATH = path.join(pythonHome, 'lib');
-      env.DYLD_LIBRARY_PATH = path.join(pythonHome, 'lib'); // macOS
+      env.LD_LIBRARY_PATH = pythonPaths.getLibDir(pythonHome);
+      env.DYLD_LIBRARY_PATH = pythonPaths.getLibDir(pythonHome); // macOS
       
       // 只在首次构建或环境变化时记录日志
       if (!this._cachedPythonEnv || this._lastEmbeddedCheck !== isUsingEmbedded) {
@@ -880,6 +883,7 @@ class FunASRManager {
       
     const possiblePaths = [
       // 优先使用 uv 虚拟环境中的 Python
+      path.join(projectRoot, ".venv", "Scripts", "python.exe"),
       path.join(projectRoot, ".venv", "bin", "python3.11"),
       path.join(projectRoot, ".venv", "bin", "python3"),
       path.join(projectRoot, ".venv", "bin", "python"),
