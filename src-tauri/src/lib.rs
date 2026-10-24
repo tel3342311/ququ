@@ -606,7 +606,6 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         app.state::<AppState>().interface.lock().unwrap().mode == interface::Mode::Compact,
         None::<&str>,
     )?;
-    let restore = MenuItem::with_id(app, "restore", "显示主界面", true, None::<&str>)?;
     let show = MenuItem::with_id(app, "show", "开始/停止听写", true, None::<&str>)?;
     let cancel = MenuItem::with_id(app, "cancel", "取消听写", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "设置", true, None::<&str>)?;
@@ -615,7 +614,7 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let menu = Menu::with_items(
         app,
         &[
-            &restore, &classic, &compact, &show, &cancel, &settings, &history, &quit,
+            &classic, &compact, &show, &cancel, &settings, &history, &quit,
         ],
     )?;
     app.manage(menu.clone());
@@ -631,16 +630,6 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
                     let _ = logging::write(&state.data_dir.join("logs"), "warn", &error);
                     if let Some(tray) = app.tray_by_id("ququ") {
                         let _ = tray.set_tooltip(Some(format!("蛐蛐：{error}")));
-                    }
-                }
-            }
-            "restore" => {
-                if let Some(w) = app.get_webview_window("main") {
-                    let _ = w.show();
-                    if app.state::<AppState>().interface.lock().unwrap().mode
-                        == interface::Mode::Classic
-                    {
-                        let _ = w.set_focus();
                     }
                 }
             }
@@ -718,6 +707,8 @@ fn set_interface_mode(app: &AppHandle, name: &str) -> Result<(), String> {
             });
         }
         current.mode = mode;
+    } else if mode == interface::Mode::Classic {
+        state.indicator.apply_mode(app, mode)?;
     }
     drop(current);
     sync_mode_menu(app, mode);
