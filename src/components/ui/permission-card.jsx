@@ -7,7 +7,7 @@ const PermissionCard = ({
   description,
   granted,
   onRequest,
-  buttonText = "授予权限",
+  buttonText = "授予權限",
 }) => {
   return (
     <div className="border border-gray-200 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-700 shadow-sm">

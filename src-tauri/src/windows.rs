@@ -8,8 +8,8 @@ pub fn open(app: &AppHandle, label: &str) -> Result<(), String> {
     }
     let (url, title, width, height) = match label {
         "control" => ("index.html?panel=control", "蛐蛐控制面板", 800.0, 600.0),
-        "history" => ("history.html", "转录历史 - 蛐蛐", 1000.0, 700.0),
-        "settings" => ("settings.html", "设置 - 蛐蛐", 700.0, 600.0),
+        "history" => ("history.html", "轉錄歷史 - 蛐蛐", 1000.0, 700.0),
+        "settings" => ("settings.html", "設定 - 蛐蛐", 700.0, 600.0),
         _ => return Err("Unknown window".into()),
     };
     WebviewWindowBuilder::new(app, label, WebviewUrl::App(url.into()))

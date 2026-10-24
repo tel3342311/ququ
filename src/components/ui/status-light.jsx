@@ -39,18 +39,18 @@ export const StatusLight = ({ modelStatus, size = "w-3 h-3", showTooltip = true 
 
   const getTooltipText = () => {
     if (modelStatus.isLoading) {
-      return "🟡 模型加载中";
+      return "🟡 模型載入中";
     }
     
     if (modelStatus.error) {
-      return "🔴 模型加载失败";
+      return "🔴 模型載入失敗";
     }
     
     if (modelStatus.isReady) {
-      return "🟢 模型已就绪";
+      return "🟢 模型已就緒";
     }
     
-    return "⚪ 模型状态未知";
+    return "⚪ 模型狀態未知";
   };
 
   const lightElement = (

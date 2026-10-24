@@ -1,7 +1,7 @@
 {
   "name": "ququ",
   "version": "1.0.0",
-  "description": " 蛐蛐-基于FunASR和可配置AI模型的中文优化语音转文字应用",
+  "description": "蛐蛐 - 基於 FunASR 與可設定 AI 模型的中文最佳化語音轉文字應用程式",
   "main": "main.js",
   "private": true,
   "scripts": {

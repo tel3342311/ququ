@@ -58,13 +58,13 @@ class DatabaseManager {
   saveTranscription(data) {
     // 验证必需的数据
     if (!data || typeof data !== 'object') {
-      throw new Error('转录数据无效');
+      throw new Error('轉錄資料無效');
     }
 
     // 确保text字段存在且不为空
     const text = data.text || data.raw_text || '';
     if (!text || text.trim().length === 0) {
-      throw new Error('转录文本不能为空');
+      throw new Error('轉錄文字不能為空');
     }
 
     const stmt = this.db.prepare(`

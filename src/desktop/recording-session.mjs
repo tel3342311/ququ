@@ -22,7 +22,7 @@ export class RecordingSession {
       };
       recorder.onerror=event=>{
         if(!this.isCurrent(generation))return;
-        this.cancel();this.onError(event.error||new Error('麦克风录音失败'));
+        this.cancel();this.onError(event.error||new Error('麥克風錄音失敗'));
       };
       recorder.start(250);this.onRecording(true);return true;
     } catch(error) {

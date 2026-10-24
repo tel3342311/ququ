@@ -17,7 +17,7 @@ test('switches are refused during every busy phase without calling native API',a
  assert.equal(calls,0);await requestInterfaceMode(api,'classic','idle');assert.equal(calls,1);
 });
 test('invalid mode and failed native changes never report success',async()=>{
- await assert.rejects(requestInterfaceMode({},'other'),/界面/);
+ await assert.rejects(requestInterfaceMode({},'other'),/介面/);
  await assert.rejects(requestInterfaceMode({setInterfaceMode:async()=>({success:false,error:'busy'})},'compact'),/busy/);
 });
 

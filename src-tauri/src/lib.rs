@@ -594,7 +594,7 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let classic = CheckMenuItem::with_id(
         app,
         "classic",
-        "经典界面",
+        "經典介面",
         true,
         app.state::<AppState>().interface.lock().unwrap().mode == interface::Mode::Classic,
         None::<&str>,
@@ -602,16 +602,16 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let compact = CheckMenuItem::with_id(
         app,
         "compact",
-        "精简界面",
+        "極簡介面",
         true,
         app.state::<AppState>().interface.lock().unwrap().mode == interface::Mode::Compact,
         None::<&str>,
     )?;
-    let show = MenuItem::with_id(app, "show", "开始/停止听写", true, None::<&str>)?;
-    let cancel = MenuItem::with_id(app, "cancel", "取消听写", true, None::<&str>)?;
-    let settings = MenuItem::with_id(app, "settings", "设置", true, None::<&str>)?;
-    let history = MenuItem::with_id(app, "history", "历史记录", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "開始/停止聽寫", true, None::<&str>)?;
+    let cancel = MenuItem::with_id(app, "cancel", "取消聽寫", true, None::<&str>)?;
+    let settings = MenuItem::with_id(app, "settings", "設定", true, None::<&str>)?;
+    let history = MenuItem::with_id(app, "history", "歷史記錄", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "結束", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
         &[

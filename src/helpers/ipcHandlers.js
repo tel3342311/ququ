@@ -187,7 +187,7 @@ class IPCHandlers {
           const result = await this.clipboardManager.enableMacOSAccessibility();
           return { success: result };
         }
-        return { success: true, message: "非 macOS 平台，无需设置" };
+        return { success: true, message: "非 macOS 平台，無需設定" };
       } catch (error) {
         this.logger.error("启用 macOS accessibility 失败:", error);
         return { success: false, error: error.message };
@@ -558,8 +558,8 @@ class IPCHandlers {
     ipcMain.handle("test-accessibility-permission", async () => {
       try {
         // 使用测试文本检查权限
-        await this.clipboardManager.pasteText("蛐蛐权限测试");
-        return { success: true, message: "辅助功能权限测试成功" };
+        await this.clipboardManager.pasteText("蛐蛐輔助使用測試");
+        return { success: true, message: "輔助使用權限測試成功" };
       } catch (error) {
         this.logger.error("辅助功能权限测试失败:", error);
         return { success: false, error: error.message };
@@ -573,7 +573,7 @@ class IPCHandlers {
           this.clipboardManager.openSystemSettings();
           return { success: true };
         } else {
-          return { success: false, error: "当前平台不支持自动打开权限设置" };
+          return { success: false, error: "目前平台不支援自動開啟權限設定" };
         }
       } catch (error) {
         this.logger.error("打开系统权限设置失败:", error);
@@ -661,21 +661,21 @@ class IPCHandlers {
             displayName: "Paraformer Large (ASR)",
             type: "asr",
             size: "840MB",
-            description: "大型中文语音识别模型"
+            description: "大型中文語音辨識模型"
           },
           {
             name: "fsmn-vad",
             displayName: "FSMN VAD",
             type: "vad",
             size: "1.6MB",
-            description: "语音活动检测模型"
+            description: "語音活動檢測模型"
           },
           {
             name: "ct-transformer-punc",
-            displayName: "CT Transformer (标点)",
+            displayName: "CT Transformer (標點)",
             type: "punc",
             size: "278MB",
-            description: "标点符号恢复模型"
+            description: "標點符號恢復模型"
           }
         ]
       };
@@ -694,7 +694,7 @@ class IPCHandlers {
       // FunASR目前使用固定模型组合，暂不支持切换
       return {
         success: false,
-        error: "FunASR使用固定模型组合，暂不支持切换单个模型"
+        error: "FunASR 使用固定模型組合，暫不支援切換單個模型"
       };
     });
 
@@ -835,9 +835,9 @@ class IPCHandlers {
             NODE_ENV: process.env.NODE_ENV,
             PATH: process.env.PATH,
             PYTHON_PATH: process.env.PYTHON_PATH,
-            AI_API_KEY: '通过控制面板设置',
-            AI_BASE_URL: '通过控制面板设置',
-            AI_MODEL: '通过控制面板设置'
+            AI_API_KEY: '透過控制面板設定',
+            AI_BASE_URL: '透過控制面板設定',
+            AI_MODEL: '透過控制面板設定'
           },
           funasrStatus: {
             isInitialized: this.funasrManager.isInitialized,
@@ -920,92 +920,92 @@ class IPCHandlers {
       if (!apiKey) {
         return {
           success: false,
-          error: '请先在设置页面配置AI API密钥'
+          error: '請先在設定頁面設定 AI API 金鑰'
         };
       }
 
       const prompts = {
-        format: `请将以下文本进行格式化，添加适当的段落分隔，使其更易阅读：\n\n${text}`,
-        correct: `请纠正以下文本中的语法错误、错别字和语音识别错误，保持原意不变：\n\n${text}`,
-        optimize: `# 角色与目标
-你是一个专业的语音转录文本优化助手，任务是对由ASR（自动语音识别）生成的初步文本进行精细的、最小化的润色。你的核心目标是去除言语组织过程中的干扰性噪音，同时100%保留说话人的原始意图、个人风格和口语习惯。
+        format: `請將以下文字進行格式化，加入適當的段落分隔，使其更易閱讀：\n\n${text}`,
+        correct: `請修正以下文字中的文法錯誤、錯別字和語音辨識錯誤，保持原意不變：\n\n${text}`,
+        optimize: `# 角色與目標
+你是一個專業的語音轉錄文字最佳化助手，任務是對由 ASR（自動語音辨識）產生的初步文字進行精細、最小幅度的潤飾。你的核心目標是去除言語組織過程中的干擾性雜音，同時 100% 保留說話者的原始意圖、個人風格和口語習慣。
 
-# 核心原则
-- **最小化修改**：只处理明确的、非内容性的言语错误。
-- **保留原貌**：最大限度地保留用户的原始用词、句式和语气。
-- **可读性优先**：在不改变原意的前提下，提升文本的流畅性和可读性。
-- **歧义时保守**：当不确定一个词或一句话是否需要修改时，必须选择保持原样。
+# 核心原則
+- **最小化修改**：只處理明確的、非內容性的言語錯誤。
+- **保留原貌**：最大限度地保留使用者的原始用詞、句式和語氣。
+- **可讀性優先**：在不改變原意的前提下，提升文字的流暢度與可讀性。
+- **歧異時保守**：當不確定一個詞或一句話是否需要修改時，必須選擇保持原樣。
 
-# 明确的优化指令 (Do's)
-1.  **纠正明显的拼写和语法错误**：修正同音错字、标点误用、以及基础的语法搭配错误（如主谓不一致）。
-2.  **移除无意义的填充词**：删除如"呃"、"嗯"、"啊这"、"那个"、"内个"、"然后那个"、"就是说"等在思考或停顿时使用的、不承载实际信息的词语。
-3.  **处理重复与口吃**：合并无意义的重复词语。
-    -   例子1: "我我我觉得" -> "我觉得"
-    -   例子2: "这个这个方案" -> "这个方案"
-4.  **整合自我修正**：当用户明确表达了修正意图时，保留修正后的最终内容，并移除被修正的错误部分。
-    -   例子1: "会议定在周三，呃不对，是周四" -> "会议定在周四"
-    -   例子2: "他的名字是小明，哦我想起来了，是小强" -> "他的名字是小强"
+# 明確的最佳化指令 (Do's)
+1.  **修正明顯的拼寫和語法錯誤**：修正同音錯字、標點誤用，以及基礎的文法搭配錯誤（如主謂不一致）。
+2.  **移除無意義的贅字與填充詞**：刪除如「呃」、「嗯」、「啊這」、「那個」、「然後那個」、「就是說」等在思考或停頓時使用、不承載實際資訊的詞語。
+3.  **處理重複與結巴**：合併無意義的重複詞語。
+    -   例子 1: 「我我我覺得」 -> 「我覺得」
+    -   例子 2: 「這個這個方案」 -> 「這個方案」
+4.  **整合自我修正**：當使用者明確表達了修正意圖時，保留修正後的最終內容，並移除被修正的錯誤部分。
+    -   例子 1: 「會議定在週三，呃不對，是週四」 -> 「會議定在週四」
+    -   例子 2: 「他的名字是小明，喔我想起來了，是小強」 -> 「他的名字是小強」
 
-# 严格的禁止项 (Don'ts)
-1.  **禁止风格转换**：绝不能将口语化的表达（如"录个影"、"蛮不错"）替换为更书面化的词语（如"录制视频"、"非常好"）。
-2.  **禁止替换用词**：除非是明显的错别字，否则不能改变用户的任何用词选择。
-3.  **禁止改变句式**：不能为了"优化"而重组用户的句子结构，例如将主动句改为被动句。
-4.  **禁止增删情感或语气词**：必须保留所有表达情感和语气的词，如"啊"、"呀"、"呢"、"吧"、"嘛"、"哦"、"喔"等。注意区分它们和第2条指令中提到的"无意义填充词"。
-5.  **禁止主观臆断**：不能添加任何原始文本中不存在的信息，或基于猜测去"完善"句子。
+# 嚴格的禁止事項 (Don'ts)
+1.  **禁止風格轉換**：絕不能將口語化的表達（如「錄個影」、「蠻不錯」）替換為更書面化的詞語（如「錄製影片」、「非常優秀」）。
+2.  **禁止替換用詞**：除非是明顯的錯別字，否則不能改變使用者的任何用詞選擇。
+3.  **禁止改變句式**：不能為了「最佳化」而重組使用者的句子結構，例如將主動句改為被动句。
+4.  **禁止增刪情感或語氣詞**：必須保留所有表達情感和語氣的詞，如「啊」、「呀」、「呢」、「吧」、「嘛」、「喔」、「哦」等。注意區分它們和第 2 條指令中提到的「無意義填充詞」。
+5.  **禁止主觀臆斷**：不能添加任何原始文字中不存在的資訊，或基於猜測去「完善」句子。
 
-原始文本：
+原始文字：
 \`\`\`
 ${text}
 \`\`\`
 
-# 输出格式
-- **输出**: 直接返回优化后的文本，不要包含任何解释、前言或总结。`,
-        optimize_long: `# 角色与目标
-你是一个专业的长文本整理助手，专门处理语音转录的长段内容。你的任务是清理口语化的思考过程，并对内容进行逻辑分段，让文本更加清晰易读。
+# 輸出格式
+- **輸出**: 直接回傳最佳化後的文字，不要包含任何解釋、前言或總結。`,
+        optimize_long: `# 角色與目標
+你是一個專業的長文字整理助手，專門處理語音轉錄的長段內容。你的任務是清理口語化的思考過程，並對內容進行邏輯分段，讓文字更加清晰易讀。
 
-# 处理重点
-这是一段较长的语音转录内容，通常包含完整的思考过程。你需要：
+# 處理重點
+這是一段較長的語音轉錄內容，通常包含完整的思考過程。你需要：
 
-## 1. 清理口语化的思考过程
-- **去除思考痕迹**：删除"然后"、"就是说"、"其实"、"比如说"、"怎么说呢"、"应该是"等思考过程中的冗余表达
-- **处理话题跳转**：整理"对了"、"还有"、"另外"等突然转换话题的表达
-- **清理重复表述**：去除同一观点的多次重复表达，保留最清晰的一次
-- **整合修正表达**：当有"不对，我的意思是"、"更准确地说"等自我纠正时，保留最终的正确表达
+## 1. 清理口語化的思考過程
+- **去除思考痕跡**：刪除「然後」、「就是說」、「其實」、「比如說」、「怎麼說呢」、「應該是」等思考過程中的冗餘表達
+- **處理話題跳轉**：整理「對了」、「還有」、「另外」等突然轉換話題的表達
+- **清理重複表述**：去除同一觀點的多次重複表達，保留最清晰的一次
+- **整合修正表達**：當有「不對，我的意思是」、「更準確地說」等自我修正時，保留最終的正確表達
 
-## 2. 智能分段
-- **识别逻辑转折点**：在话题转换、观点变化、举例说明等地方进行分段
-- **保持逻辑完整性**：确保每段都有完整的逻辑表达
-- **适度分段**：避免过短或过长的段落，保持阅读节奏
+## 2. 智慧分段
+- **辨識邏輯轉折點**：在話題轉換、觀點變化、舉例說明等處進行分段
+- **保持邏輯完整性**：確保每段都有完整的邏輯表達
+- **適度分段**：避免過短或過長的段落，保持閱讀節奏
 
-## 3. 保持原意和自然性
-- **不改变表达风格**：保持原有的用词习惯和表达方式
-- **不添加新内容**：绝不添加原文中没有的信息
-- **保留重要细节**：确保例子、数据、具体描述都得到保留
+## 3. 保持原意與自然性
+- **不改變表達風格**：保持原有的用詞習慣和表達方式
+- **不添加新內容**：絕不添加原文中沒有的資訊
+- **保留重要細節**：確保例子、數據、具體描述都得到保留
 
-原始文本：
+原始文字：
 \`\`\`
 ${text}
 \`\`\`
 
-请直接返回清理后并分段的文本，不要包含任何解释或说明。`,
-        summarize: `请总结以下文本的主要内容，提取关键信息：\n\n${text}`,
-        enhance: `请对以下文本进行内容优化：
+請直接回傳清理後並分段的文字，不要包含任何解釋或說明。`,
+        summarize: `請總結以下文字的主要內容，擷取關鍵資訊：\n\n${text}`,
+        enhance: `請對以下文字進行內容最佳化：
 
-**优化要求：**
-1. **严格保持原意和语义不变**
-2. 纠正明显的用词错误和语法问题
-3. 优化表达方式，使语言更加准确和流畅
-4. 可以调整标点符号以提升文本质量
-5. 保留原文的语言风格
+**最佳化要求：**
+1. **嚴格保持原意和語意不變**
+2. 修正明顯的用詞錯誤和語法問題
+3. 最佳化表達方式，使語言更加準確且流暢
+4. 可以調整標點符號以提升文字品質
+5. 保留原文的語言風格
 
-**注意事项：**
-- 对于诗词、成语、俗语等固定表达，请保持原样
-- 宁可保守处理，也不要过度修改
+**注意事項：**
+- 對於詩詞、成語、俗語等固定表達，請保持原樣
+- 寧可保守處理，也不要過度修改
 
-原始文本：
+原始文字：
 ${text}
 
-请直接返回优化后的文本，不需要解释过程。`
+請直接回傳最佳化後的文字，不需要解釋過程。`
       };
 
       const baseUrl = await this.databaseManager.getSetting('ai_base_url') || 'https://api.openai.com/v1';
@@ -1079,30 +1079,30 @@ ${text}
         this.logger.error('AI API返回数据格式错误:', response.data);
         return {
           success: false,
-          error: 'AI API返回数据格式错误'
+          error: 'AI API 回傳資料格式錯誤'
         };
       }
     } catch (error) {
       this.logger.error('AI文本处理失败:', error);
       
-      let errorMessage = '文本处理失败';
+      let errorMessage = '文字處理失敗';
       if (error.response) {
         // API错误响应
         if (error.response.status === 401) {
-          errorMessage = 'API密钥无效，请检查配置';
+          errorMessage = 'API 金鑰無效，請檢查設定';
         } else if (error.response.status === 429) {
-          errorMessage = 'API调用频率超限，请稍后重试';
+          errorMessage = 'API 呼叫頻率超限，請稍後重試';
         } else if (error.response.status === 500) {
-          errorMessage = 'AI服务器错误，请稍后重试';
+          errorMessage = 'AI 伺服器錯誤，請稍後重試';
         } else {
-          errorMessage = `API错误: ${error.response.status}`;
+          errorMessage = `API 錯誤: ${error.response.status}`;
         }
       } else if (error.code === 'ECONNABORTED') {
-        errorMessage = '请求超时，请检查网络连接';
+        errorMessage = '請求逾時，請檢查網路連線';
       } else if (error.code === 'ENOTFOUND') {
-        errorMessage = '无法连接到AI服务器，请检查网络';
+        errorMessage = '無法連線至 AI 伺服器，請檢查網路';
       } else {
-        errorMessage = error.message || '未知错误';
+        errorMessage = error.message || '未知錯誤';
       }
 
       return {
@@ -1136,8 +1136,8 @@ ${text}
         this.logger.warn('AI测试失败: 未配置API密钥');
         return {
           available: false,
-          error: '未配置API密钥',
-          details: '请输入AI API密钥'
+          error: '未設定 API 金鑰',
+          details: '請輸入 AI API 金鑰'
         };
       }
       
@@ -1148,7 +1148,7 @@ ${text}
       });
       
       // 发送一个更有意义的测试请求
-      const testMessage = '请回复"测试成功"来确认AI服务正常工作';
+      const testMessage = '請回覆「測試成功」來確認 AI 服務正常運作';
       const requestData = {
         model: model,
         messages: [
@@ -1187,13 +1187,13 @@ ${text}
         
         let errorMessage = errorData.error?.message || errorData.error || `HTTP ${response.status}`;
         if (response.status === 401) {
-          errorMessage = 'API密钥无效或已过期';
+          errorMessage = 'API 金鑰無效或已過期';
         } else if (response.status === 403) {
-          errorMessage = 'API密钥权限不足';
+          errorMessage = 'API 金鑰權限不足';
         } else if (response.status === 429) {
-          errorMessage = 'API调用频率超限';
+          errorMessage = 'API 呼叫頻率超限';
         } else if (response.status === 500) {
-          errorMessage = 'AI服务器内部错误';
+          errorMessage = 'AI 伺服器內部錯誤';
         }
         
         throw new Error(errorMessage);
@@ -1203,7 +1203,7 @@ ${text}
       this.logger.info('AI API成功响应:', data);
 
       if (!data.choices || data.choices.length === 0) {
-        throw new Error('AI API返回格式异常：缺少choices字段');
+        throw new Error('AI API 回傳格式異常：缺少 choices 欄位');
       }
 
       const aiResponse = data.choices[0].message?.content || '';
@@ -1215,32 +1215,32 @@ ${text}
         status: 'connected',
         response: aiResponse,
         usage: data.usage,
-        details: `成功连接到 ${model}，响应时间正常`
+        details: `成功連線至 ${model}，回應時間正常`
       };
     } catch (error) {
       this.logger.error('AI配置测试失败:', error);
       
-      let errorMessage = '连接失败';
+      let errorMessage = '連線失敗';
       if (error.message.includes('401')) {
-        errorMessage = 'API密钥无效';
+        errorMessage = 'API 金鑰無效';
       } else if (error.message.includes('403')) {
-        errorMessage = 'API密钥权限不足';
+        errorMessage = 'API 金鑰權限不足';
       } else if (error.message.includes('429')) {
-        errorMessage = 'API调用频率超限';
+        errorMessage = 'API 呼叫頻率超限';
       } else if (error.message.includes('ENOTFOUND')) {
-        errorMessage = '无法连接到AI服务器，请检查网络和Base URL';
+        errorMessage = '無法連線至 AI 伺服器，請檢查網路與 Base URL';
       } else if (error.message.includes('ECONNREFUSED')) {
-        errorMessage = '连接被拒绝，请检查Base URL是否正确';
+        errorMessage = '連線被拒絕，請檢查 Base URL 是否正確';
       } else if (error.message.includes('timeout')) {
-        errorMessage = '请求超时，请检查网络连接';
+        errorMessage = '請求逾時，請檢查網路連線';
       } else {
-        errorMessage = error.message || '未知错误';
+        errorMessage = error.message || '未知錯誤';
       }
 
       return {
         available: false,
         error: errorMessage,
-        details: `测试失败原因: ${error.message}`
+        details: `測試失敗原因: ${error.message}`
       };
     }
   }

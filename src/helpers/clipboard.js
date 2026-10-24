@@ -102,7 +102,7 @@ class ClipboardManager {
         if (!hasPermissions) {
           this.safeLog("⚠️ 没有辅助功能权限 - 文本仅复制到剪贴板");
           const errorMsg =
-            "需要辅助功能权限才能自动粘贴。文本已复制到剪贴板 - 请手动使用 Cmd+V 粘贴。";
+            "需要輔助使用權限才能自動貼上。文字已複製至剪貼簿 — 請手動使用 Cmd+V 貼上。";
           throw new Error(errorMsg);
         }
 
@@ -150,7 +150,7 @@ class ClipboardManager {
             }, 100);
             resolve();
           } else {
-            const errorMsg = `粘贴失败 (代码 ${code})。文本已复制到剪贴板 - 请手动使用 Cmd+V 粘贴。`;
+            const errorMsg = `貼上失敗 (代碼 ${code})。文字已複製至剪貼簿 — 請手動使用 Cmd+V 貼上。`;
             reject(new Error(errorMsg));
           }
         });
@@ -159,7 +159,7 @@ class ClipboardManager {
           if (hasTimedOut) return;
           clearTimeout(timeoutId);
           pasteProcess.removeAllListeners();
-          const errorMsg = `粘贴命令失败: ${error.message}。文本已复制到剪贴板 - 请手动使用 Cmd+V 粘贴。`;
+          const errorMsg = `貼上指令失敗: ${error.message}。文字已複製至剪貼簿 — 請手動使用 Cmd+V 貼上。`;
           reject(new Error(errorMsg));
         });
 
@@ -168,7 +168,7 @@ class ClipboardManager {
           pasteProcess.kill("SIGKILL");
           pasteProcess.removeAllListeners();
           const errorMsg =
-            "粘贴操作超时。文本已复制到剪贴板 - 请手动使用 Cmd+V 粘贴。";
+            "貼上操作逾時。文字已複製至剪貼簿 — 請手動使用 Cmd+V 貼上。";
           reject(new Error(errorMsg));
         }, 3000);
       }, 100);
@@ -192,7 +192,7 @@ class ClipboardManager {
         } else {
           reject(
             new Error(
-              `Windows 粘贴失败，代码 ${code}。文本已复制到剪贴板。`
+              `Windows 貼上失敗，代碼 ${code}。文字已複製至剪貼簿。`
             )
           );
         }
@@ -201,7 +201,7 @@ class ClipboardManager {
       pasteProcess.on("error", (error) => {
         reject(
           new Error(
-            `Windows 粘贴失败: ${error.message}。文本已复制到剪贴板。`
+            `Windows 貼上失敗: ${error.message}。文字已複製至剪貼簿。`
           )
         );
       });
@@ -222,7 +222,7 @@ class ClipboardManager {
         } else {
           reject(
             new Error(
-              `Linux 粘贴失败，代码 ${code}。文本已复制到剪贴板。`
+              `Linux 貼上失敗，代碼 ${code}。文字已複製至剪貼簿。`
             )
           );
         }
@@ -231,7 +231,7 @@ class ClipboardManager {
       pasteProcess.on("error", (error) => {
         reject(
           new Error(
-            `Linux 粘贴失败: ${error.message}。文本已复制到剪贴板。`
+            `Linux 貼上失敗: ${error.message}。文字已複製至剪貼簿。`
           )
         );
       });
@@ -282,45 +282,45 @@ class ClipboardManager {
 
     let dialogMessage;
     if (isStuckPermission) {
-      dialogMessage = `🔒 蛐蛐需要辅助功能权限，但看起来您可能有来自先前版本的旧权限。
+      dialogMessage = `🔒 蛐蛐需要輔助使用權限，但看起來您可能有來自先前版本的舊權限。
 
-❗ 常见问题：如果您重新构建/重新安装了蛐蛐，旧权限可能"卡住"并阻止新权限。
+❗ 常見問題：如果您重新建置／重新安裝了蛐蛐，舊權限可能「卡住」並阻止新權限。
 
-🔧 解决方法：
-1. 打开系统设置 → 隐私与安全性 → 辅助功能
-2. 查找任何旧的"蛐蛐"条目并删除它们（点击 - 按钮）
-3. 同时删除任何显示"Electron"或名称不明确的条目
-4. 点击 + 按钮并手动添加新的蛐蛐应用
-5. 确保复选框已启用
-6. 重启蛐蛐
+🔧 解決方法：
+1. 開啟系統設定 → 隱私權與安全性 → 輔助使用
+2. 尋找任何舊的「蛐蛐」項目並刪除（點擊 - 按鈕）
+3. 同時刪除任何顯示「Electron」或名稱不明確的項目
+4. 點擊 + 按鈕並手動加入新的蛐蛐應用程式
+5. 確保核取方塊已啟用
+6. 重新啟動蛐蛐
 
-⚠️ 这在开发期间重新构建应用时特别常见。
+⚠️ 這在開發期間重新建置應用程式時特別常見。
 
-📝 没有此权限，文本将只复制到剪贴板（无自动粘贴）。
+📝 沒有此權限，文字將只會複製至剪貼簿（無自動貼上）。
 
-您想现在打开系统设置吗？`;
+您想現在開啟系統設定嗎？`;
     } else {
-      dialogMessage = `🔒 蛐蛐需要辅助功能权限才能将文本粘贴到其他应用程序中。
+      dialogMessage = `🔒 蛐蛐需要輔助使用權限才能將文字貼上至其他應用程式中。
 
-📋 当前状态：剪贴板复制有效，但粘贴（Cmd+V 模拟）失败。
+📋 目前狀態：剪貼簿複製有效，但貼上（Cmd+V 模擬）失敗。
 
-🔧 解决方法：
-1. 打开系统设置（或较旧 macOS 上的系统偏好设置）
-2. 转到隐私与安全性 → 辅助功能
-3. 点击锁图标并输入您的密码
-4. 将蛐蛐添加到列表中并勾选复选框
-5. 重启蛐蛐
+🔧 解決方法：
+1. 開啟系統設定（或較舊 macOS 上的系統偏好設定）
+2. 前往隱私權與安全性 → 輔助使用
+3. 點擊鎖頭圖示並輸入您的密碼
+4. 將蛐蛐加入列表中並勾選核取方塊
+5. 重新啟動蛐蛐
 
-⚠️ 没有此权限，听写文本将只复制到剪贴板但不会自动粘贴。
+⚠️ 沒有此權限，聽寫文字將只會複製至剪貼簿但不會自動貼上。
 
-💡 在生产版本中，此权限是完整功能所必需的。
+💡 在正式發行版本中，此權限為完整功能所必需。
 
-您想现在打开系统设置吗？`;
+您想現在開啟系統設定嗎？`;
     }
 
     const permissionDialog = spawn("osascript", [
       "-e",
-      `display dialog "${dialogMessage}" buttons {"取消", "打开系统设置"} default button "打开系统设置"`,
+      `display dialog "${dialogMessage}" buttons {"取消", "開啟系統設定"} default button "開啟系統設定"`,
     ]);
 
     permissionDialog.on("close", (dialogCode) => {

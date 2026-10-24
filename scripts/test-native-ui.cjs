@@ -28,26 +28,26 @@ async function findPage(browser, suffix) {
 
   await main.evaluate(() => window.electronAPI.openSettingsWindow());
   const settings = await findPage(browser, 'settings.html');
-  await settings.getByText('本地语音引擎', {exact:true}).waitFor();
+  await settings.getByText('本機語音引擎', {exact:true}).waitFor();
   assert.equal(await settings.evaluate(() => window.electronAPI.runtime), 'tauri');
   const originalMode=await settings.evaluate(()=>window.electronAPI.getInterfaceMode());
   try {
     await settings.evaluate(()=>window.electronAPI.setInterfaceMode('classic'));
-    await main.getByRole('button',{name:'开始录音',exact:true}).waitFor();
+    await main.getByRole('button',{name:'開始錄音',exact:true}).waitFor();
     await main.waitForFunction(async()=>{const info=await window.electronAPI.getDebugInfo();return info.interfaceMode==='classic'&&info.mainVisible;});
     let info=await main.evaluate(()=>window.electronAPI.getDebugInfo());
     assert.equal(info.mainFocusable,true);
     assert.ok(Math.abs(info.mainSize.width/info.mainSize.height-0.8)<0.02,'Classic native size must be 400:500');
     await main.screenshot({path:path.join(output,'native-classic.png')});
-    await settings.getByRole('radio',{name:/极简/}).click();
+    await settings.getByRole('radio',{name:/極簡/}).click();
     await settings.waitForFunction(()=>document.querySelector('input[name="interface-mode"][value="compact"]')?.checked);
     await main.locator('.recording-indicator').waitFor({state:'attached'});
     await main.waitForFunction(async()=>!(await window.electronAPI.getDebugInfo()).mainVisible);
     info=await main.evaluate(()=>window.electronAPI.getDebugInfo());
     assert.equal(info.interfaceMode,'compact');assert.equal(info.mainFocusable,false);
     assert.equal(await settings.evaluate(()=>window.electronAPI.getSetting('interface_mode',null)),'compact','mode must persist in SQLite');
-    await settings.reload();await settings.getByRole('radio',{name:/极简/}).waitFor();
-    assert.equal(await settings.getByRole('radio',{name:/极简/}).isChecked(),true);
+    await settings.reload();await settings.getByRole('radio',{name:/極簡/}).waitFor();
+    assert.equal(await settings.getByRole('radio',{name:/極簡/}).isChecked(),true);
     for(const phase of ['starting','recording','processing','optimizing']) {
       await main.evaluate(value=>window.electronAPI.setDictationPhase(value),phase);
       assert.equal(await settings.evaluate(async()=>{try{await window.electronAPI.setInterfaceMode('classic');return false;}catch{return true;}}),true,`must reject while ${phase}`);
@@ -55,7 +55,7 @@ async function findPage(browser, suffix) {
     }
     await main.evaluate(()=>window.electronAPI.setDictationPhase('idle'));
     await settings.evaluate(()=>window.electronAPI.setInterfaceMode('classic'));
-    await main.getByRole('button',{name:'收起到极简'}).click();
+    await main.getByRole('button',{name:'收合至極簡'}).click();
     await main.locator('.recording-indicator').waitFor({state:'attached'});
     assert.equal(await main.evaluate(()=>window.electronAPI.getInterfaceMode()),'compact');
   } finally {
@@ -64,23 +64,23 @@ async function findPage(browser, suffix) {
   }
   const options = await settings.locator('select option').allTextContents();
   assert.ok(options.some(value => value.includes('SenseVoice')));
-  await settings.getByText('录音快捷键',{exact:true}).waitFor();
+  await settings.getByText('錄音快速鍵',{exact:true}).waitFor();
   const original=await settings.evaluate(()=>window.electronAPI.getHotkeyConfig());
   try {
-    await settings.getByRole('button',{name:'重新捕获'}).click();
-    await settings.getByRole('button',{name:'请按快捷键…'}).waitFor();
+    await settings.getByRole('button',{name:'重新擷取'}).click();
+    await settings.getByRole('button',{name:'請按快速鍵…'}).waitFor();
     await settings.keyboard.down('ControlLeft');await settings.keyboard.up('ControlLeft');
-    await settings.getByRole('button',{name:'保存快捷键'}).click();
-    await settings.getByText('快捷键已保存。',{exact:true}).waitFor();
+    await settings.getByRole('button',{name:'儲存快速鍵'}).click();
+    await settings.getByText('快速鍵已儲存。',{exact:true}).waitFor();
     assert.equal((await settings.evaluate(()=>window.electronAPI.getHotkeyConfig())).key,'ControlLeft');
-    await settings.getByLabel('录音方式').selectOption('hold');
-    await settings.getByRole('button',{name:'保存快捷键'}).click();
-    await settings.getByText('快捷键已保存。',{exact:true}).waitFor();
+    await settings.getByLabel('錄音方式').selectOption('hold');
+    await settings.getByRole('button',{name:'儲存快速鍵'}).click();
+    await settings.getByText('快速鍵已儲存。',{exact:true}).waitFor();
     assert.equal((await settings.evaluate(()=>window.electronAPI.getHotkeyConfig())).mode,'hold');
-    await settings.getByRole('button',{name:'重新捕获'}).click();
-    await settings.getByRole('button',{name:'请按快捷键…'}).waitFor();
+    await settings.getByRole('button',{name:'重新擷取'}).click();
+    await settings.getByRole('button',{name:'請按快速鍵…'}).waitFor();
     await settings.keyboard.press('Escape');
-    await settings.getByText('已取消捕获。',{exact:true}).waitFor();
+    await settings.getByText('已取消擷取。',{exact:true}).waitFor();
     await settings.reload();await settings.getByText('ControlLeft',{exact:true}).waitFor();
     const rejected=await settings.evaluate(async()=>{try{await window.electronAPI.setHotkeyConfig({key:'A',mode:'toggle'});return false}catch{return true}});
     assert.equal(rejected,true,'bare typing keys must be rejected');

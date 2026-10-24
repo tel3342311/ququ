@@ -52,7 +52,7 @@ export function useCompactDictation() {
       return;
     }
     if(action!=='start'||phaseRef.current!=='idle')return;
-    if(!modelRef.current.isReady){report(modelRef.current.error||'语音模型未就绪，请从托盘打开设置。');return;}
+    if(!modelRef.current.isReady){report(modelRef.current.error||'語音模型尚未就緒，請從系統匣開啟設定。');return;}
     setError('');stoppedAt.current=null;
     const intent=++intentRef.current;
     const published=await setPhase('starting');

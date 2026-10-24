@@ -1,3 +1,3 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>NSMicrophoneUsageDescription</key><string>蛐蛐需要麦克风进行本地语音转文字。</string></dict></plist>
+<plist version="1.0"><dict><key>NSMicrophoneUsageDescription</key><string>蛐蛐需要麥克風進行本機語音轉文字。</string></dict></plist>

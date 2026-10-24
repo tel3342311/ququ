@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 (async () => {
-  const browser = await chromium.launch({ channel:'msedge', headless:true });
+  const browser = await chromium.launch({ channel:process.env.PLAYWRIGHT_CHANNEL||(process.platform==='win32'?'msedge':'chrome'), headless:true });
   const context = await browser.newContext();
   await context.addInitScript(() => {
     const api = {
@@ -23,7 +23,7 @@ const fs = require('node:fs');
   for(const mode of ['light','dark']) {
     await page.emulateMedia({colorScheme:mode});
     await page.goto('http://localhost:5173/settings.html');
-    const heading=page.getByText('本地语音引擎',{exact:true});await heading.waitFor();
+    const heading=page.getByText('本機語音引擎',{exact:true});await heading.waitFor();
     const settings=await heading.evaluate(el=>({color:getComputedStyle(el).color,body:getComputedStyle(document.body).color,dark:document.documentElement.classList.contains('dark')}));
     await page.screenshot({path:`.lavish/settings-theme-${mode}.png`,fullPage:true});
     await page.goto('http://localhost:5173/?panel=control');
@@ -46,7 +46,7 @@ const fs = require('node:fs');
     } catch(error) {failures.push(`${mode}: ${error.message}`);}
   }
   await page.goto('http://localhost:5173/settings.html');
-  await page.getByText('本地语音引擎',{exact:true}).waitFor();
+  await page.getByText('本機語音引擎',{exact:true}).waitFor();
   await page.emulateMedia({colorScheme:'light'});
   await page.waitForFunction(()=>!document.documentElement.classList.contains('dark'));
   await page.emulateMedia({colorScheme:'dark'});

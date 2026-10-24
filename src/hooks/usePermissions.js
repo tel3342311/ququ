@@ -11,52 +11,52 @@ export const usePermissions = (showAlertDialog) => {
       setMicPermissionGranted(true);
       if (showAlertDialog) {
         showAlertDialog({
-          title: "✅ 麦克风权限测试成功",
-          description: "麦克风权限正常工作！现在可以进行语音录制了。"
+          title: "✅ 麥克風權限測試成功",
+          description: "麥克風權限運作正常！現在可以開始錄音了。"
         });
       } else {
-        alert("✅ 麦克风权限正常工作！现在可以进行语音录制了。");
+        alert("✅ 麥克風權限運作正常！現在可以開始錄音了。");
       }
     } catch (err) {
       if (window.electronAPI && window.electronAPI.log) {
-        window.electronAPI.log('error', '麦克风权限被拒绝:', err);
+        window.electronAPI.log('error', '麥克風權限被拒絕:', err);
       }
       setMicPermissionGranted(false);
       if (showAlertDialog) {
         showAlertDialog({
-          title: "❌ 需要麦克风权限",
-          description: "请授予麦克风权限以使用语音转录功能。"
+          title: "❌ 需要麥克風權限",
+          description: "請授予麥克風權限以使用語音轉錄功能。"
         });
       } else {
-        alert("❌ 需要麦克风权限！请授予麦克风权限以使用语音转录功能。");
+        alert("❌ 需要麥克風權限！請授予麥克風權限以使用語音轉錄功能。");
       }
     }
   }, [showAlertDialog]);
 
   const testAccessibilityPermission = useCallback(async () => {
     try {
-      await window.electronAPI.pasteText("蛐蛐辅助功能测试");
+      await window.electronAPI.pasteText("蛐蛐輔助使用測試");
       setAccessibilityPermissionGranted(true);
       if (showAlertDialog) {
         showAlertDialog({
-          title: "✅ 辅助功能权限测试成功",
-          description: "辅助功能权限正常工作！请检查测试文本是否出现在其他应用中。"
+          title: "✅ 輔助使用權限測試成功",
+          description: "輔助使用權限運作正常！請檢查測試文字是否出現在其他應用程式中。"
         });
       } else {
-        alert("✅ 辅助功能权限正常工作！请检查测试文本是否出现在其他应用中。");
+        alert("✅ 輔助使用權限運作正常！請檢查測試文字是否出現在其他應用程式中。");
       }
     } catch (err) {
       if (window.electronAPI && window.electronAPI.log) {
-        window.electronAPI.log('error', '辅助功能权限测试失败:', err);
+        window.electronAPI.log('error', '輔助使用權限測試失敗:', err);
       }
       setAccessibilityPermissionGranted(false);
       if (showAlertDialog) {
         showAlertDialog({
-          title: "❌ 需要辅助功能权限",
-          description: "请在系统设置中授予辅助功能权限，以启用自动文本粘贴功能。"
+          title: "❌ 需要輔助使用權限",
+          description: "請在系統設定中授予輔助使用權限，以啟用自動貼上文字功能。"
         });
       } else {
-        alert("❌ 需要辅助功能权限！请在系统设置中授予权限。");
+        alert("❌ 需要輔助使用權限！請在系統設定中授予權限。");
       }
     }
   }, [showAlertDialog]);

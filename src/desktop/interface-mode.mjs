@@ -26,8 +26,8 @@ export function observeInterfaceMode(api, onMode, onError = () => {}) {
 }
 
 export async function requestInterfaceMode(api, mode, phase = 'idle') {
-  if (!modes.has(mode)) throw new Error('未知界面模式');
-  if (phase !== 'idle') throw new Error('请先完成这次听写，再切换界面。');
+  if (!modes.has(mode)) throw new Error('未知介面模式');
+  if (phase !== 'idle') throw new Error('請先完成這次聽寫，再切換介面。');
   const result = await api.setInterfaceMode(mode);
-  if (!result?.success) throw new Error(result?.error || '界面切换失败');
+  if (!result?.success) throw new Error(result?.error || '介面切換失敗');
 }

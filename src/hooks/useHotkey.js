@@ -93,7 +93,7 @@ export const useHotkey = () => {
       .replace('CommandOrControl', navigator.platform.includes('Mac') ? '⌘' : 'Ctrl')
       .replace('Shift', '⇧')
       .replace('Alt', '⌥')
-      .replace('Space', '空格')
+      .replace('Space', '空白鍵')
       .replace('F2', 'F2')
       .replace('+', ' + ');
   };

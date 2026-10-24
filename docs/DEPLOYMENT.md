@@ -72,7 +72,7 @@ If you explicitly pass `--target x86_64-pc-windows-msvc`, outputs instead appear
 2. Launch **蛐蛐** from the installed shortcut.
 3. Open Settings → local speech engine; download SenseVoice and wait for initialization.
 4. Allow microphone access. Configure the recording hotkey.
-5. Select Classic or Compact in Settings → 界面模式, or from the tray menu.
+5. Select Classic or Compact in Settings → 介面模式, or from the tray menu.
 
 New installations use Classic. Compact is hidden while idle, so use the tray icon to open Settings or switch back to Classic.
 

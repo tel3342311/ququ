@@ -84,7 +84,7 @@ impl Database {
             .unwrap_or("")
             .trim();
         if text.is_empty() {
-            return Err("转录文本不能为空".into());
+            return Err("轉錄文字不能為空".into());
         }
         self.0.execute("INSERT INTO transcriptions(text,raw_text,processed_text,confidence,language,duration,file_size) VALUES(?,?,?,?,?,?,?)",params![
           text,data["raw_text"].as_str(),data["processed_text"].as_str(),data["confidence"].as_f64().unwrap_or(0.0),

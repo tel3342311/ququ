@@ -28,7 +28,7 @@ const SettingsPanel = ({ onClose }) => {
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center gap-3">
             <Settings className="w-6 h-6 text-blue-600" />
-            <h2 className="text-xl font-bold text-gray-900 chinese-title">设置</h2>
+            <h2 className="text-xl font-bold text-gray-900 chinese-title">設定</h2>
           </div>
           <button
             onClick={onClose}
@@ -44,29 +44,29 @@ const SettingsPanel = ({ onClose }) => {
           {/* 权限部分 */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 chinese-title">
-              权限管理
+              權限管理
             </h3>
             <p className="text-sm text-gray-600 mb-6">
-              测试和管理应用权限，确保麦克风和辅助功能正常工作。
+              測試與管理應用程式權限，確保麥克風與輔助使用功能正常運作。
             </p>
             
             <div className="space-y-4">
               <PermissionCard
                 icon={Mic}
-                title="麦克风权限"
-                description="录制语音所需的权限"
+                title="麥克風權限"
+                description="錄製語音所需的權限"
                 granted={micPermissionGranted}
                 onRequest={requestMicPermission}
-                buttonText="测试麦克风"
+                buttonText="測試麥克風"
               />
 
               <PermissionCard
                 icon={Shield}
-                title="辅助功能权限"
-                description="自动粘贴文本所需的权限"
+                title="輔助使用權限"
+                description="自動貼上文字所需的權限"
                 granted={accessibilityPermissionGranted}
                 onRequest={testAccessibilityPermission}
-                buttonText="测试权限"
+                buttonText="測試權限"
               />
             </div>
           </div>
@@ -74,17 +74,17 @@ const SettingsPanel = ({ onClose }) => {
           {/* 应用信息部分 */}
           <div className="border-t pt-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 chinese-title">
-              关于蛐蛐
+              關於蛐蛐
             </h3>
             <div className="bg-gradient-to-r from-blue-50 to-green-50 p-4 rounded-lg">
               <p className="text-sm text-gray-700 mb-2">
-                🎤 <strong>蛐蛐 (QuQu)</strong> - 基于FunASR和AI的中文语音转文字应用
+                🎤 <strong>蛐蛐 (QuQu)</strong> - 基於 FunASR 與 AI 的中文語音轉文字應用程式
               </p>
               <p className="text-xs text-gray-600">
-                • 高精度中文语音识别<br/>
-                • AI智能文本优化<br/>
-                • 实时语音处理<br/>
-                • 隐私保护设计
+                • 高精度中文語音辨識<br/>
+                • AI 智慧文字最佳化<br/>
+                • 即時語音處理<br/>
+                • 隱私保護設計
               </p>
             </div>
           </div>

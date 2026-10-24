@@ -37,8 +37,8 @@ export default function HotkeySettings() {
       active = false;
       if (key !== 'cancel') {
         setConfig(previous => ({ ...previous, key }));
-        setStatus('快捷键已捕获，点击保存后生效。');
-      } else setStatus('已取消捕获。');
+        setStatus('快速鍵已擷取，點擊儲存後生效。');
+      } else setStatus('已取消擷取。');
       setCapturing(false); setArmed(false);
     };
     const down = event => { event.preventDefault(); event.stopPropagation(); finish(capture.keydown(event)); };
@@ -46,7 +46,7 @@ export default function HotkeySettings() {
     const blur = () => finish('cancel');
     window.addEventListener('blur', blur);
     const started = Promise.resolve().then(() => api.beginHotkeyCapture()).then(result => {
-      if (result?.success === false) throw new Error(result.error || '无法开始快捷键捕获');
+      if (result?.success === false) throw new Error(result.error || '無法開始快速鍵擷取');
       if (!active) return;
       listening = true;
       window.addEventListener('keydown', down, true);
@@ -65,7 +65,7 @@ export default function HotkeySettings() {
       // Release after an outstanding begin resolves, including unmount/blur races.
       setReleasing(true);
       started.then(() => api.endHotkeyCapture()).then(result => {
-        if (result?.success === false) throw new Error(result.error || '无法结束快捷键捕获');
+        if (result?.success === false) throw new Error(result.error || '無法結束快速鍵擷取');
       }).catch(reason => {
         setError(message(reason));
       }).finally(() => setReleasing(false));
@@ -77,26 +77,26 @@ export default function HotkeySettings() {
     setSaving(true); setError(''); setStatus('');
     try {
       const result = await api.setHotkeyConfig(config);
-      if (!result?.success) throw new Error(result?.error || '快捷键保存失败');
-      setSaved({ ...config }); setStatus('快捷键已保存。');
+      if (!result?.success) throw new Error(result?.error || '快速鍵儲存失敗');
+      setSaved({ ...config }); setStatus('快速鍵已儲存。');
     } catch (reason) { setError(message(reason)); }
     finally { setSaving(false); }
   };
   const disabled = loading || saving || capturing || releasing;
   const dirty = !saved || saved.key !== config.key || saved.mode !== config.mode;
   return <section className="rounded-lg border p-5 space-y-4">
-    <h2 className="text-lg font-semibold">录音快捷键</h2>
-    <p className="text-sm text-muted-foreground">支持左 / 右 Ctrl、Shift、Alt、Win，功能键或组合键。按 Esc 或切换窗口取消捕获。</p>
+    <h2 className="text-lg font-semibold">錄音快速鍵</h2>
+    <p className="text-sm text-muted-foreground">支援左 / 右 Ctrl、Shift、Alt、Win，功能鍵或組合鍵。按 Esc 或切換視窗取消擷取。</p>
     <div className="flex flex-wrap items-center gap-3">
-      <output className="rounded border px-3 py-2 font-mono" aria-label="录音快捷键">{config.key}</output>
-      <button type="button" disabled={disabled} onClick={() => { setError(''); setStatus(''); setCapturing(true); }} className="rounded border px-4 py-2 disabled:opacity-50">{capturing ? armed ? '请按快捷键…' : '正在准备…' : releasing ? '正在结束捕获…' : '重新捕获'}</button>
-      {capturing && <button type="button" onClick={() => { setCapturing(false); setArmed(false); setStatus('已取消捕获。'); }} className="rounded border px-4 py-2">取消</button>}
+      <output className="rounded border px-3 py-2 font-mono" aria-label="錄音快速鍵">{config.key}</output>
+      <button type="button" disabled={disabled} onClick={() => { setError(''); setStatus(''); setCapturing(true); }} className="rounded border px-4 py-2 disabled:opacity-50">{capturing ? armed ? '請按快速鍵…' : '正在準備…' : releasing ? '正在結束擷取…' : '重新擷取'}</button>
+      {capturing && <button type="button" onClick={() => { setCapturing(false); setArmed(false); setStatus('已取消擷取。'); }} className="rounded border px-4 py-2">取消</button>}
     </div>
-    <label className="block">录音方式<select disabled={disabled} value={config.mode} onChange={event => { setConfig(previous => ({ ...previous, mode: event.target.value })); setStatus(''); }} className="mt-1 block w-full rounded border p-2 bg-background">
-      <option value="toggle">按一下开始，再按一下停止</option>
-      <option value="hold">按住录音，松开停止</option>
+    <label className="block">錄音方式<select disabled={disabled} value={config.mode} onChange={event => { setConfig(previous => ({ ...previous, mode: event.target.value })); setStatus(''); }} className="mt-1 block w-full rounded border p-2 bg-background">
+      <option value="toggle">按一下開始，再按一下停止</option>
+      <option value="hold">按住錄音，放開停止</option>
     </select></label>
-    <button type="button" disabled={disabled || !dirty} onClick={save} className="rounded bg-blue-600 text-white px-4 py-2 disabled:opacity-50">{saving ? '正在保存…' : '保存快捷键'}</button>
+    <button type="button" disabled={disabled || !dirty} onClick={save} className="rounded bg-blue-600 text-white px-4 py-2 disabled:opacity-50">{saving ? '正在儲存…' : '儲存快速鍵'}</button>
     {error && <p role="alert" className="text-sm text-red-600 break-words">{error}</p>}
     <p role="status" className="text-sm">{status}</p>
   </section>;
