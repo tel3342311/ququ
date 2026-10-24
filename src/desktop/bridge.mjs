@@ -8,6 +8,8 @@ const commands = {
   pasteText: 'paste-text', copyText: 'copy-text', readClipboard: 'read-clipboard', writeClipboard: 'write-clipboard',
   saveTranscription: 'save-transcription', getTranscriptions: 'get-transcriptions', deleteTranscription: 'delete-transcription',
   clearAllTranscriptions: 'clear-all-transcriptions', exportTranscriptions: 'export-transcriptions',
+  updateTranscription: 'update-transcription',
+  getSpecialWords: 'get-special-words', saveSpecialWord: 'save-special-word', deleteSpecialWord: 'delete-special-word',
   getSettings: 'get-settings', getAllSettings: 'get-all-settings', getSetting: 'get-setting', setSetting: 'set-setting',
   saveSetting: 'save-setting', resetSettings: 'reset-settings', importSettings: 'import-settings', exportSettings: 'export-settings',
   registerHotkey: 'register-hotkey', unregisterHotkey: 'unregister-hotkey', getCurrentHotkey: 'get-current-hotkey',
@@ -33,6 +35,7 @@ const events = {
   onTranscriptionUpdate: 'transcription-update', onProcessingUpdate: 'processing-update', onError: 'error',
   onSettingsUpdate: 'settings-update', onModelDownloadProgress: 'model-download-progress',
   onDictationError: 'dictation-error', onInterfaceModeChanged: 'interface-mode-changed',
+  onSpecialWordsUpdate: 'special-words-update',
 };
 
 export function createDesktopAPI({ invoke, listen, onListenerError = () => {} }) {

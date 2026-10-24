@@ -3,6 +3,8 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import HistoryModal from "./components/ui/history-modal";
+import SpecialWordBubble from "./components/SpecialWordBubble";
+import { Toaster } from "./components/ui/sonner";
 
 // 历史记录页面组件
 const HistoryPage = () => {
@@ -34,9 +36,10 @@ const HistoryPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      {/* 使用历史记录组件，但作为全屏页面而不是模态框 */}
+      <Toaster richColors position="top-center" />
+      {/* 使用歷史記錄組件，但作為全屏頁面而不是模態框 */}
       <div className="h-screen flex flex-col">
-        {/* 标题栏 */}
+        {/* 標題欄 */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
           <div className="flex items-center space-x-3">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 chinese-title">蛐蛐 - 轉錄歷史記錄</h1>
@@ -227,15 +230,18 @@ const HistoryContent = ({ onCopy }) => {
                     </div>
                   </div>
 
-                  {/* 最终文本 */}
+                  {/* 最終文字 */}
                   <div className="mb-4">
                     <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">最終結果:</h4>
-                    <p className="chinese-content leading-relaxed bg-gray-50 dark:bg-gray-700/60 p-4 rounded-lg border dark:border-gray-600/30">
+                    <p
+                      data-history-id={item.id}
+                      className="history-transcript-text chinese-content leading-relaxed bg-gray-50 dark:bg-gray-700/60 p-4 rounded-lg border dark:border-gray-600/30 select-text"
+                    >
                       {item.text}
                     </p>
                   </div>
 
-                  {/* AI优化文本 */}
+                  {/* AI優化文字 */}
                   {item.processed_text && item.processed_text.trim() !== (item.raw_text || '').trim() && (
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-emerald-700 dark:text-emerald-400 mb-2">AI 最佳化:</h4>
@@ -245,7 +251,7 @@ const HistoryContent = ({ onCopy }) => {
                     </div>
                   )}
 
-                  {/* 原始识别文本 */}
+                  {/* 原始辨識文字 */}
                   {item.raw_text && item.raw_text.trim() !== item.text.trim() && (
                     <div>
                       <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">原始辨識:</h4>
@@ -260,6 +266,25 @@ const HistoryContent = ({ onCopy }) => {
           )}
         </div>
       </div>
+      <SpecialWordBubble
+        targetSelector=".history-transcript-text"
+        onSentenceUpdate={(word, replacement, targetElement) => {
+          const rawId = targetElement?.getAttribute('data-history-id');
+          const id = rawId ? Number(rawId) : null;
+          if (id) {
+            const target = transcriptions.find(item => item.id === id);
+            if (!target) return;
+            const newText = target.text.replaceAll(word, replacement);
+            if (newText === target.text) return;
+            const applyText = list => list.map(item => (item.id === id ? { ...item, text: newText } : item));
+            setFilteredTranscriptions(applyText);
+            setTranscriptions(applyText);
+            if (window.electronAPI?.updateTranscription) {
+              window.electronAPI.updateTranscription(id, newText).catch(console.error);
+            }
+          }
+        }}
+      />
     </div>
   );
 };

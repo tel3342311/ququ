@@ -140,6 +140,54 @@ async fn desktop_command(
             .database()?
             .delete(arg(&args, 0).as_i64().ok_or("Invalid ID")?),
         "clear-all-transcriptions" => state.database()?.clear(),
+        "update-transcription" => {
+            let id = arg(&args, 0).as_i64().ok_or("Invalid ID")?;
+            let updated_text = text(&args, 1)?;
+            let result = state
+                .database()?
+                .update_transcription_text(id, updated_text)?;
+            app.emit(
+                "transcription-update",
+                json!({"id": id, "text": updated_text}),
+            )
+            .map_err(|e| e.to_string())?;
+            Ok(result)
+        }
+        "get-special-words" => state.database()?.get_special_words(),
+        "save-special-word" => {
+            let data = arg(&args, 0);
+            let payload = if data.is_object() {
+                data
+            } else if let Some(w) = data.as_str() {
+                json!({
+                    "word": w,
+                    "replacement": args.get(1).and_then(Value::as_str)
+                })
+            } else {
+                return Err("Invalid special word data".into());
+            };
+            let result = state.database()?.save_special_word(&payload)?;
+            app.emit("special-words-update", &result)
+                .map_err(|e| e.to_string())?;
+            Ok(result)
+        }
+        "delete-special-word" => {
+            let target = arg(&args, 0);
+            let result = if let Some(id) = target.as_i64() {
+                state.database()?.delete_special_word(id)?
+            } else if let Some(s) = target.as_str() {
+                if let Ok(id) = s.parse::<i64>() {
+                    state.database()?.delete_special_word(id)?
+                } else {
+                    state.database()?.delete_special_word_by_word(s)?
+                }
+            } else {
+                return Err("Invalid ID or word".into());
+            };
+            app.emit("special-words-update", json!({"deleted": target}))
+                .map_err(|e| e.to_string())?;
+            Ok(result)
+        }
         "hide-window" => {
             window.hide().map_err(|e| e.to_string())?;
             Ok(json!({"success":true}))

@@ -61,6 +61,10 @@ Single-modifier capture is supported on Windows and macOS. On macOS it uses an e
 Verification: `npm run test:desktop`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`. With Vite running, use `node scripts/test-interface-ui.cjs`, `node scripts/test-compact-ui.cjs` and `npm run test:theme`. The opt-in native smoke script also checks capture, saved settings after reload, invalid shortcut rejection and restoration of the original configuration. Physical keyboard feel and microphone quality still require hands-on use.
 
 
+## Special words (專有詞彙)
+
+Special words are stored in the `special_words` table of the existing SQLite database and managed in Settings → 專有詞彙. In Classic mode, selecting text in the current result or in a History entry shows a bubble with an add button and an optional correct-spelling box. A word saved with a correct spelling is a heard-to-correct pair: it updates the sentence shown (and the History entry, persisted) and is applied to future dictation after recognition and again after optional AI optimization (`src/desktop/special-words.mjs`). Saving an existing word without a spelling keeps its stored spelling. A word without a spelling is only stored; the speech engines do not support recognition biasing.
+
 ## Performance evidence
 
 See [Local ASR baseline](performance-baseline.md) and its recorded JSON for the reproducible 30-run SenseVoice benchmark. On the measured i7-1370P computer, a 5.592-second fixture produced warm p50 606.86 ms and p95 684.96 ms. These are local recognition pipeline times, not stop-to-paste or a Classic/Compact A/B result. Verification and process-cold model construction are reported separately.
