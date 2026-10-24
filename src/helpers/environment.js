@@ -157,7 +157,7 @@ class EnvironmentManager {
     try {
       this.ensureDataDirectory();
     } catch (error) {
-      issues.push(`无法创建数据目录: ${error.message}`);
+      issues.push(`無法建立資料目錄: ${error.message}`);
     }
     
     // 检查系统要求

@@ -30,7 +30,7 @@ export const useTextProcessing = () => {
     const { raw_text, duration, file_size } = transcriptionData;
 
     if (!raw_text || raw_text.trim().length === 0) {
-      setError('转录文本内容不能为空');
+      setError('轉錄文字不能為空');
       return null;
     }
 
@@ -89,7 +89,7 @@ export const useTextProcessing = () => {
         return { ...finalData, id: savedResult.lastInsertRowid };
       }
     } catch (err) {
-      const errorMessage = err.message || '保存转录数据时发生未知错误';
+      const errorMessage = err.message || '儲存轉錄資料時發生未知錯誤';
       setError(errorMessage);
       if (window.electronAPI && window.electronAPI.log) {
         window.electronAPI.log('error', '保存转录数据失败:', err);
