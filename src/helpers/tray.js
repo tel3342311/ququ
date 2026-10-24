@@ -37,7 +37,7 @@ class TrayManager {
       }
 
       this.tray = new Tray(trayIcon);
-      this.tray.setToolTip("蛐蛐 - 中文语音转文字");
+      this.tray.setToolTip("蛐蛐 - 中文語音轉文字");
 
       // 创建上下文菜单
       this.updateContextMenu();
@@ -81,7 +81,7 @@ class TrayManager {
 
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: "显示主窗口",
+        label: "顯示主視窗",
         click: () => {
           if (this.mainWindow) {
             this.mainWindow.show();
@@ -106,14 +106,14 @@ class TrayManager {
       },
       { type: "separator" },
       {
-        label: "关于",
+        label: "關於",
         click: () => {
           // TODO: 显示关于对话框
         }
       },
       { type: "separator" },
       {
-        label: "退出",
+        label: "結束",
         click: () => {
           require("electron").app.quit();
         }
@@ -135,14 +135,14 @@ class TrayManager {
 
     switch (status) {
       case "recording":
-        this.tray.setToolTip("蛐蛐 - 正在录音...");
+        this.tray.setToolTip("蛐蛐 - 正在錄音...");
         break;
       case "processing":
-        this.tray.setToolTip("蛐蛐 - 正在处理...");
+        this.tray.setToolTip("蛐蛐 - 正在處理...");
         break;
       case "ready":
       default:
-        this.tray.setToolTip("蛐蛐 - 中文语音转文字");
+        this.tray.setToolTip("蛐蛐 - 中文語音轉文字");
         break;
     }
   }

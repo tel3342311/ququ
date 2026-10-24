@@ -51,24 +51,24 @@ class ErrorBoundary extends React.Component {
               <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center mr-3">
                 <span className="text-white text-sm">!</span>
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">应用出现错误</h2>
+              <h2 className="text-lg font-semibold text-gray-900">應用程式發生錯誤</h2>
             </div>
             
             <p className="text-gray-600 mb-4">
-              蛐蛐遇到了一个意外错误。请尝试重启应用。
+              蛐蛐發生了未預期的錯誤。請嘗試重新啟動應用程式。
             </p>
             
             {process.env.NODE_ENV === 'development' && (
               <details className="mb-4">
                 <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
-                  查看错误详情
+                  查看錯誤詳細資訊
                 </summary>
                 <div className="mt-2 p-3 bg-gray-100 rounded text-xs font-mono text-gray-700 overflow-auto max-h-32">
                   <div className="mb-2">
-                    <strong>错误:</strong> {this.state.error && this.state.error.toString()}
+                    <strong>錯誤：</strong> {this.state.error && this.state.error.toString()}
                   </div>
                   <div>
-                    <strong>堆栈:</strong>
+                    <strong>呼叫堆疊：</strong>
                     <pre className="whitespace-pre-wrap">
                       {this.state.errorInfo.componentStack}
                     </pre>
@@ -82,7 +82,7 @@ class ErrorBoundary extends React.Component {
                 onClick={() => window.location.reload()}
                 className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
-                重新加载
+                重新載入
               </button>
               
               {isElectron() && (
@@ -90,7 +90,7 @@ class ErrorBoundary extends React.Component {
                   onClick={() => window.electronAPI.closeWindow()}
                   className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  关闭应用
+                  關閉應用程式
                 </button>
               )}
             </div>
@@ -142,7 +142,7 @@ function initializeApp() {
   }
 
   // 设置中文语言环境
-  document.documentElement.lang = 'zh-CN'
+  document.documentElement.lang = 'zh-TW'
   
 }
 

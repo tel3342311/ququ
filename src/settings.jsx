@@ -65,7 +65,7 @@ const SettingsPage = () => {
       }
     } catch (error) {
       console.error("加载设置失败:", error);
-      toast.error("加载设置失败");
+      toast.error("載入設定失敗");
     } finally {
       setLoading(false);
     }
@@ -82,11 +82,11 @@ const SettingsPage = () => {
         await window.electronAPI.setSetting('ai_model', settings.ai_model);
         await window.electronAPI.setSetting('enable_ai_optimization', settings.enable_ai_optimization);
         
-        toast.success("设置保存成功");
+        toast.success("設定儲存成功");
       }
     } catch (error) {
       console.error("保存设置失败:", error);
-      toast.error("保存设置失败");
+      toast.error("儲存設定失敗");
     } finally {
       setSaving(false);
     }
@@ -108,7 +108,7 @@ const SettingsPage = () => {
       ai_model: "qwen3-30b-a3b-instruct-2507"
     }));
     setCustomModel(true);
-    toast.info("已应用阿里云推荐配置");
+    toast.info("已套用阿里雲推薦設定");
   };
 
   // 重置为OpenAI配置
@@ -119,7 +119,7 @@ const SettingsPage = () => {
       ai_model: "gpt-3.5-turbo"
     }));
     setCustomModel(false);
-    toast.info("已重置为OpenAI配置");
+    toast.info("已重設為 OpenAI 設定");
   };
 
   // 测试AI配置
@@ -132,11 +132,11 @@ const SettingsPage = () => {
       if (!settings.ai_api_key.trim()) {
         setTestResult({
           available: false,
-          error: '请先输入API密钥',
-          details: 'API密钥不能为空'
+          error: '請先輸入 API 金鑰',
+          details: 'API 金鑰不能為空'
         });
-        toast.error("配置不完整", {
-          description: "请先输入API密钥"
+        toast.error("設定不完整", {
+          description: "請先輸入 API 金鑰"
         });
         return;
       }
@@ -153,12 +153,12 @@ const SettingsPage = () => {
         setTestResult(result);
         
         if (result.available) {
-          toast.success("AI配置测试成功！", {
-            description: `模型: ${result.model || '未知'} - 连接正常`
+          toast.success("AI 設定測試成功！", {
+            description: `模型: ${result.model || '未知'} - 連線正常`
           });
         } else {
-          toast.error("AI配置测试失败", {
-            description: result.error || "未知错误"
+          toast.error("AI 設定測試失敗", {
+            description: result.error || "未知錯誤"
           });
         }
       }
@@ -166,10 +166,10 @@ const SettingsPage = () => {
       console.error("测试AI配置失败:", error);
       setTestResult({
         available: false,
-        error: error.message || "测试失败"
+        error: error.message || "測試失敗"
       });
-      toast.error("测试失败", {
-        description: error.message || "未知错误"
+      toast.error("測試失敗", {
+        description: error.message || "未知錯誤"
       });
     } finally {
       setTesting(false);
@@ -188,7 +188,7 @@ const SettingsPage = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="flex items-center space-x-3">
           <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-          <span className="text-gray-700 dark:text-gray-300">加载设置中...</span>
+          <span className="text-gray-700 dark:text-gray-300">載入設定中...</span>
         </div>
       </div>
     );
@@ -201,7 +201,7 @@ const SettingsPage = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Settings className="w-5 h-5 text-blue-600" />
-            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 chinese-title">设置</h1>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 chinese-title">設定</h1>
           </div>
           <button
             onClick={handleClose}
@@ -223,30 +223,30 @@ const SettingsPage = () => {
             <div className="p-6">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 chinese-title">
-                  权限管理
+                  權限管理
                 </h2>
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                  测试和管理应用权限，确保麦克风和辅助功能正常工作。
+                  測試與管理應用程式權限，確保麥克風與輔助使用功能正常運作。
                 </p>
               </div>
               
               <div className="space-y-2">
                 <PermissionCard
                   icon={Mic}
-                  title="麦克风权限"
-                  description="录制语音所需的权限"
+                  title="麥克風權限"
+                  description="錄製語音所需的權限"
                   granted={micPermissionGranted}
                   onRequest={requestMicPermission}
-                  buttonText="测试麦克风"
+                  buttonText="測試麥克風"
                 />
 
                 <PermissionCard
                   icon={Shield}
-                  title="辅助功能权限"
-                  description="自动粘贴文本所需的权限"
+                  title="輔助使用權限"
+                  description="自動貼上文字所需的權限"
                   granted={accessibilityPermissionGranted}
                   onRequest={testAccessibilityPermission}
-                  buttonText="测试权限"
+                  buttonText="測試權限"
                 />
               </div>
             </div>
@@ -257,10 +257,10 @@ const SettingsPage = () => {
             <div className="p-6">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 chinese-title">
-                  AI配置
+                  AI 設定
                 </h2>
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                 配置AI模型以优化和增强语音识别结果。如果API Key无效或未填写，优化功能将自动禁用。
+                 設定 AI 模型以最佳化並增強語音辨識結果。若 API Key 無效或未填寫，最佳化功能將自動停用。
                </p>
               </div>
 
@@ -268,7 +268,7 @@ const SettingsPage = () => {
                {/* AI优化开关 */}
                <div className="flex items-center justify-between pt-4">
                  <label htmlFor="ai-optimization-toggle" className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                   启用AI文本优化
+                   啟用 AI 文字最佳化
                  </label>
                  <button
                    type="button"
@@ -298,7 +298,7 @@ const SettingsPage = () => {
                       type={showApiKey ? "text" : "password"}
                       value={settings.ai_api_key}
                       onChange={(e) => handleInputChange('ai_api_key', e.target.value)}
-                      placeholder="请输入您的AI API Key"
+                      placeholder="請輸入您的 AI API Key"
                       className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                     />
                     <button
@@ -310,7 +310,7 @@ const SettingsPage = () => {
                     </button>
                   </div>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    用于AI文本优化功能的API密钥
+                    用於 AI 文字最佳化功能的 API 金鑰
                   </p>
                 </div>
 
@@ -327,7 +327,7 @@ const SettingsPage = () => {
                     className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    AI服务的API端点地址，支持OpenAI兼容的API
+                    AI 服務的 API 端點網址，支援相容 OpenAI 的 API
                   </p>
                 </div>
 
@@ -335,7 +335,7 @@ const SettingsPage = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                      AI模型
+                      AI 模型
                     </label>
                     <div className="flex items-center space-x-2">
                       <button
@@ -343,7 +343,7 @@ const SettingsPage = () => {
                         onClick={applyRecommendedConfig}
                         className="text-xs px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
                       >
-                        阿里云推荐
+                        阿里雲推薦
                       </button>
                       <button
                         type="button"
@@ -366,7 +366,7 @@ const SettingsPage = () => {
                         className="w-3 h-3 text-blue-600 border-gray-300 focus:ring-blue-500"
                       />
                       <label htmlFor="predefined-model" className="text-xs text-gray-700 dark:text-gray-300">
-                        预定义模型
+                        預設模型
                       </label>
                     </div>
                     
@@ -381,7 +381,7 @@ const SettingsPage = () => {
                         <option value="gpt-4-turbo">GPT-4 Turbo</option>
                         <option value="gpt-4o">GPT-4o</option>
                         <option value="gpt-4o-mini">GPT-4o Mini</option>
-                        <option value="qwen3-30b-a3b-instruct-2507">Qwen3-30B (推荐)</option>
+                        <option value="qwen3-30b-a3b-instruct-2507">Qwen3-30B (推薦)</option>
                       </select>
                     )}
                     
@@ -395,7 +395,7 @@ const SettingsPage = () => {
                         className="w-3 h-3 text-blue-600 border-gray-300 focus:ring-blue-500"
                       />
                       <label htmlFor="custom-model" className="text-xs text-gray-700 dark:text-gray-300">
-                        自定义模型
+                        自訂模型
                       </label>
                     </div>
                     
@@ -404,14 +404,14 @@ const SettingsPage = () => {
                         type="text"
                         value={settings.ai_model}
                         onChange={(e) => handleInputChange('ai_model', e.target.value)}
-                        placeholder="输入自定义模型名称，如：qwen3-30b-a3b-instruct-2507"
+                        placeholder="輸入自訂模型名稱，例如：qwen3-30b-a3b-instruct-2507"
                         className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
                     )}
                   </div>
                   
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    选择用于文本优化的AI模型。推荐使用阿里云Qwen3模型获得更好的中文处理效果。
+                    選擇用於文字最佳化的 AI 模型。推薦使用阿里雲 Qwen3 模型獲得更好的中文處理效果。
                   </p>
                 </div>
               </div>
@@ -434,7 +434,7 @@ const SettingsPage = () => {
                         ? 'text-green-800 dark:text-green-200'
                         : 'text-red-800 dark:text-red-200'
                     }`}>
-                      {testResult.available ? 'AI配置测试成功' : 'AI配置测试失败'}
+                      {testResult.available ? 'AI 設定測試成功' : 'AI 設定測試失敗'}
                     </span>
                   </div>
                   
@@ -442,22 +442,22 @@ const SettingsPage = () => {
                     <div className="mt-2 space-y-1">
                       {testResult.model && (
                         <p className="text-xs text-green-700 dark:text-green-300">
-                          <strong>模型:</strong> {testResult.model}
+                          <strong>模型：</strong> {testResult.model}
                         </p>
                       )}
                       {testResult.details && (
                         <p className="text-xs text-green-700 dark:text-green-300">
-                          <strong>状态:</strong> {testResult.details}
+                          <strong>狀態：</strong> {testResult.details}
                         </p>
                       )}
                       {testResult.response && (
                         <p className="text-xs text-green-700 dark:text-green-300">
-                          <strong>AI回复:</strong> {testResult.response}
+                          <strong>AI 回覆：</strong> {testResult.response}
                         </p>
                       )}
                       {testResult.usage && (
                         <p className="text-xs text-green-600 dark:text-green-400">
-                          Token使用: {testResult.usage.total_tokens || 'N/A'}
+                          Token 使用量： {testResult.usage.total_tokens || 'N/A'}
                         </p>
                       )}
                     </div>
@@ -467,7 +467,7 @@ const SettingsPage = () => {
                     <div className="mt-2 space-y-1">
                       {testResult.error && (
                         <p className="text-xs text-red-700 dark:text-red-300">
-                          <strong>错误:</strong> {testResult.error}
+                          <strong>錯誤：</strong> {testResult.error}
                         </p>
                       )}
                       {testResult.details && (
@@ -493,10 +493,10 @@ const SettingsPage = () => {
                     ) : (
                       <TestTube className="w-3 h-3" />
                     )}
-                    <span>{testing ? "测试中..." : "测试配置"}</span>
+                    <span>{testing ? "測試中..." : "測試設定"}</span>
                   </button>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    测试当前编辑的配置（无需保存）
+                    測試目前編輯的設定（無需儲存）
                   </p>
                 </div>
                 
@@ -510,7 +510,7 @@ const SettingsPage = () => {
                   ) : (
                     <Save className="w-3 h-3" />
                   )}
-                  <span>{saving ? "保存中..." : "保存设置"}</span>
+                  <span>{saving ? "儲存中..." : "儲存設定"}</span>
                 </button>
               </div>
             </div>
@@ -520,17 +520,17 @@ const SettingsPage = () => {
           <div className="mt-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="p-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 chinese-title mb-3">
-                关于蛐蛐
+                關於蛐蛐
               </h2>
               <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 p-3 rounded-lg">
                 <p className="text-xs text-gray-700 dark:text-gray-300 mb-1">
-                  🎤 <strong>蛐蛐 (QuQu)</strong> - 基于FunASR和AI的中文语音转文字应用
+                  🎤 <strong>蛐蛐 (QuQu)</strong> - 基於 FunASR 與 AI 的中文語音轉文字應用程式
                 </p>
                 <p className="text-xs text-gray-600 dark:text-gray-400">
-                  • 高精度中文语音识别<br/>
-                  • AI智能文本优化<br/>
-                  • 实时语音处理<br/>
-                  • 隐私保护设计
+                  • 高精度中文語音辨識<br/>
+                  • AI 智慧文字最佳化<br/>
+                  • 即時語音處理<br/>
+                  • 隱私保護設計
                 </p>
               </div>
             </div>

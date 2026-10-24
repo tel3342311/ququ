@@ -5,12 +5,12 @@ import { finishDictation } from './dictation.mjs';
 function harness(overrides={}) {
   const calls=[];
   const api={transcribeAudio:async()=>({success:true,text:'原始文字。',raw_text:'原始文字',duration:2,language:'zh-CN'}),getSetting:async()=>true,
-    processText:async()=>({success:true,text:'优化后的文字。'}),saveTranscription:async data=>{calls.push(['save',data]);return {lastInsertRowid:1};},pasteText:async text=>{calls.push(['paste',text]);return {success:true};},copyText:async text=>{calls.push(['copy',text]);return {success:true};},log:async()=>{},...overrides};
+    processText:async()=>({success:true,text:'最佳化後的文字。'}),saveTranscription:async data=>{calls.push(['save',data]);return {lastInsertRowid:1};},pasteText:async text=>{calls.push(['paste',text]);return {success:true};},copyText:async text=>{calls.push(['copy',text]);return {success:true};},log:async()=>{},...overrides};
   return {api,calls};
 }
 test('saves raw and processed text once and pastes only the final result',async()=>{
   const {api,calls}=harness();await finishDictation(api,new Uint8Array([1,2]));
-  assert.equal(calls.filter(([action])=>action==='save').length,1);assert.equal(calls[0][1].raw_text,'原始文字');assert.equal(calls[0][1].processed_text,'优化后的文字。');assert.deepEqual(calls[1],['paste','优化后的文字。']);
+  assert.equal(calls.filter(([action])=>action==='save').length,1);assert.equal(calls[0][1].raw_text,'原始文字');assert.equal(calls[0][1].processed_text,'最佳化後的文字。');assert.deepEqual(calls[1],['paste','最佳化後的文字。']);
 });
 test('AI failure falls back to recognized text and still pastes once',async()=>{
   const {api,calls}=harness({processText:async()=>{throw new Error('offline')}});await finishDictation(api,new Uint8Array([1]));
@@ -26,7 +26,7 @@ test('silence does not call AI or create an empty history item',async()=>{
 });
 test('paste failure leaves the saved result in clipboard with a warning',async()=>{
   const {api,calls}=harness({pasteText:async()=>{throw new Error('denied')}});const result=await finishDictation(api,new Uint8Array([1]));
-  assert.equal(result.pasted,false);assert.deepEqual(calls.at(-1),['copy','优化后的文字。']);assert.ok(result.warning);
+  assert.equal(result.pasted,false);assert.deepEqual(calls.at(-1),['copy','最佳化後的文字。']);assert.ok(result.warning);
 });
 test('cancellation during a pending paste does not copy a late result',async()=>{
   let reject,entered,valid=true;const reached=new Promise(r=>entered=r);

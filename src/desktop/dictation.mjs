@@ -7,7 +7,7 @@ export async function finishDictation(api,audio,{isCurrent=()=>true,onPhase=()=>
   onPhase('processing');
   const result=await report.measure('asrMs',()=>api.transcribeAudio(audio));
   if(!isCurrent())return cancelled();
-  if(!result?.success)throw new Error(result?.error||'语音识别失败');
+  if(!result?.success)throw new Error(result?.error||'語音辨識失敗');
   const recognized=result.text?.trim()||'';
   if(!recognized){outcome=2;return {empty:true};}
   let finalText=recognized,processedText=null;
@@ -26,13 +26,13 @@ export async function finishDictation(api,audio,{isCurrent=()=>true,onPhase=()=>
   if(!isCurrent())return cancelled();
   try {
     const pasted=await report.measure('pasteMs',()=>api.pasteText(finalText));
-    if(pasted?.success===false)throw new Error(pasted.error||'无法粘贴');
+    if(pasted?.success===false)throw new Error(pasted.error||'無法貼上');
     outcome=1;return {text:finalText,rawText:result.raw_text??recognized,pasted:true};
   } catch {
     if(!isCurrent())return cancelled();
     const copied=await report.measure('pasteMs',()=>api.copyText(finalText));
-    if(copied?.success===false)throw new Error(copied.error||'无法复制文字，识别结果已保存到历史。');
-    outcome=1;return {text:finalText,rawText:result.raw_text??recognized,pasted:false,warning:'无法自动粘贴，文字已保存并复制到剪贴簿。'};
+    if(copied?.success===false)throw new Error(copied.error||'無法複製文字，辨識結果已儲存至歷史記錄。');
+    outcome=1;return {text:finalText,rawText:result.raw_text??recognized,pasted:false,warning:'無法自動貼上，文字已儲存並複製到剪貼簿。'};
   }
   } finally {report.finish(outcome);}
 }

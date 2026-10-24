@@ -4,7 +4,7 @@ export function applyModelProgress(previous, progress) {
     ...previous,
     downloadProgress: progress.overall_progress || progress.progress || 0,
     stage: previous.isReady ? 'ready' : failed ? 'error' : 'downloading',
-    ...(failed ? {isDownloading:false, error:previous.isReady ? null : progress.error || '模型下载失败'} : {}),
+    ...(failed ? {isDownloading:false, error:previous.isReady ? null : progress.error || '模型下載失敗'} : {}),
   };
 }
 

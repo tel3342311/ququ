@@ -31,17 +31,17 @@ export const useRecording = () => {
       // 检查FunASR是否就绪
       if (!modelStatus.isReady) {
         if (modelStatus.isLoading) {
-          throw new Error('FunASR服务器正在启动中，请稍候...');
+          throw new Error('FunASR伺服器正在啟動中，請稍候...');
         } else if (modelStatus.error) {
-          throw new Error('FunASR服务器未就绪，请检查配置');
+          throw new Error('FunASR伺服器尚未就緒，請檢查設定');
         } else {
-          throw new Error('正在准备FunASR服务器，请稍候...');
+          throw new Error('正在準備 FunASR 伺服器，請稍候...');
         }
       }
 
       // 检查浏览器支持
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('您的浏览器不支持录音功能');
+        throw new Error('您的瀏覽器不支援錄音功能');
       }
 
       // 请求麦克风权限
@@ -85,14 +85,14 @@ export const useRecording = () => {
           // 处理音频
           await processAudio(audioBlob);
         } catch (err) {
-          setError(`音频处理失败: ${err.message}`);
+          setError(`音訊處理失敗: ${err.message}`);
         } finally {
           setIsProcessing(false);
         }
       };
 
       mediaRecorder.onerror = (event) => {
-        setError(`录音错误: ${event.error?.message || '未知错误'}`);
+        setError(`錄音錯誤: ${event.error?.message || '未知錯誤'}`);
         setIsRecording(false);
         setIsProcessing(false);
       };
@@ -102,7 +102,7 @@ export const useRecording = () => {
       setIsRecording(true);
 
     } catch (err) {
-      setError(`无法开始录音: ${err.message}`);
+      setError(`無法開始錄音: ${err.message}`);
       setIsRecording(false);
     }
   }, [modelStatus.isReady, modelStatus.isLoading, modelStatus.error]);
@@ -235,16 +235,16 @@ export const useRecording = () => {
 
           return { ...transcriptionResult, enhanced_by_ai: false };
         } else {
-          throw new Error(transcriptionResult.error || '语音识别失败');
+          throw new Error(transcriptionResult.error || '語音辨識失敗');
         }
       } else {
         // Web环境模拟
-        const mockResult = { success: true, text: '模拟识别结果。', confidence: 0.95, duration: 3.5 };
+        const mockResult = { success: true, text: '模擬辨識結果。', confidence: 0.95, duration: 3.5 };
         if (window.onTranscriptionComplete) window.onTranscriptionComplete(mockResult);
         return mockResult;
       }
     } catch (err) {
-      throw new Error(`音频处理失败: ${err.message}`);
+      throw new Error(`音訊處理失敗: ${err.message}`);
     } finally {
       processingRef.current.isProcessingAudio = false;
     }
@@ -276,12 +276,12 @@ export const useRecording = () => {
 
           resolve(wavBlob);
         } catch (err) {
-          reject(new Error(`音频格式转换失败: ${err.message}`));
+          reject(new Error(`音訊格式轉換失敗: ${err.message}`));
         }
       };
 
       reader.onerror = () => {
-        reject(new Error('读取音频文件失败'));
+        reject(new Error('讀取音訊檔案失敗'));
       };
 
       reader.readAsArrayBuffer(audioBlob);

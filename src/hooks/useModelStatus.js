@@ -73,7 +73,7 @@ export const useModelStatus = () => {
         setModelStatus(prev => ({
           ...prev,
           isLoading: false,
-          error: '检查模型文件失败',
+          error: '檢查模型檔案失敗',
           stage: 'error'
         }));
         return;
@@ -126,7 +126,7 @@ export const useModelStatus = () => {
           isReady: false,
           modelsDownloaded: true,
           missingModels: [],
-          error: serverStatus.error || '服务器未就绪',
+          error: serverStatus.error || '伺服器尚未就緒',
           progress: 0,
           stage: 'error'
         }));
@@ -140,7 +140,7 @@ export const useModelStatus = () => {
         ...prev,
         isLoading: false,
         isReady: false,
-        error: error.message || '模型状态检查失败',
+        error: error.message || '模型狀態檢查失敗',
         progress: 0,
         stage: 'error'
       }));
@@ -193,14 +193,14 @@ export const useModelStatus = () => {
           setModelStatus(prev => ({
             ...prev,
             isLoading: false,
-            error: '重启服务器失败: ' + restartError.message,
+            error: '重新啟動伺服器失敗: ' + restartError.message,
             stage: 'error'
           }));
         }
         
         return { success: true };
       } else {
-        throw new Error(result.error || '下载失败');
+        throw new Error(result.error || '下載失敗');
       }
       
     } catch (error) {
@@ -209,7 +209,7 @@ export const useModelStatus = () => {
         ...prev,
         isDownloading: false,
         isLoading: false,
-        error: error.message || '下载模型失败',
+        error: error.message || '下載模型失敗',
         stage: 'error'
       }));
       return { success: false, error: error.message };

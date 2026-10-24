@@ -134,7 +134,7 @@ const TextDisplay = ({ originalText, processedText, isProcessing, onCopy, onExpo
             <button
               onClick={() => onCopy(originalText)}
               className="p-1.5 hover:bg-slate-200/70 dark:hover:bg-gray-700/70 rounded-md transition-colors flex-shrink-0"
-              title="复制识别文本"
+              title="複製辨識文字"
             >
               <Copy className="w-4 h-4 text-slate-600 dark:text-gray-400" />
             </button>
@@ -146,14 +146,14 @@ const TextDisplay = ({ originalText, processedText, isProcessing, onCopy, onExpo
       {(processedText || isProcessing) && (
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-xl p-5 border-l-4 border-emerald-400 dark:border-emerald-500 shadow-lg border border-emerald-200/50 dark:border-emerald-700/50">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-semibold chinese-title text-emerald-700 dark:text-emerald-400">AI优化后</h3>
+            <h3 className="text-base font-semibold chinese-title text-emerald-700 dark:text-emerald-400">AI 最佳化後</h3>
             <div className="flex space-x-2">
               {processedText && (
                 <>
                   <button
                     onClick={() => onPaste(processedText)}
                     className="p-2 hover:bg-emerald-200/70 dark:hover:bg-emerald-700/30 rounded-lg transition-colors shadow-sm"
-                    title="粘贴优化文本"
+                    title="貼上最佳化文字"
                   >
                     <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -162,14 +162,14 @@ const TextDisplay = ({ originalText, processedText, isProcessing, onCopy, onExpo
                   <button
                     onClick={() => onCopy(processedText)}
                     className="p-2 hover:bg-emerald-200/70 dark:hover:bg-emerald-700/30 rounded-lg transition-colors shadow-sm"
-                    title="复制优化文本"
+                    title="複製最佳化文字"
                   >
                     <Copy className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   </button>
                   <button
                     onClick={() => onExport(processedText)}
                     className="p-2 hover:bg-emerald-200/70 dark:hover:bg-emerald-700/30 rounded-lg transition-colors shadow-sm"
-                    title="导出文本"
+                    title="匯出文字"
                   >
                     <Download className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   </button>
@@ -180,7 +180,7 @@ const TextDisplay = ({ originalText, processedText, isProcessing, onCopy, onExpo
           {isProcessing ? (
             <div className="flex items-center space-x-3 text-emerald-700 dark:text-emerald-400">
               <LoadingDots />
-              <span className="status-text">AI正在优化文本...</span>
+              <span className="status-text">AI 正在最佳化文字...</span>
             </div>
           ) : (
             <p className="chinese-content leading-loose fade-in text-foreground">
@@ -202,10 +202,10 @@ export default function App() {
   if (page === 'settings') {
     return (
       <React.Suspense fallback={
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 dark:from-gray-900 dark:text-gray-800 flex items-center justify-center">
           <div className="flex items-center space-x-3">
             <LoadingDots />
-            <span className="text-gray-700 dark:text-gray-300">加载设置页面...</span>
+            <span className="text-gray-700 dark:text-gray-300">載入設定頁面...</span>
           </div>
         </div>
       }>
@@ -262,17 +262,17 @@ export default function App() {
         console.log("📱 使用 Electron API 进行粘贴");
         await window.electronAPI.pasteText(text);
         console.log("✅ 粘贴成功");
-        toast.success("文本已自动粘贴到当前输入框");
+        toast.success("文字已自動貼上至當前輸入框");
       } else {
         // Web环境下只能复制到剪贴板
         console.log("🌐 Web环境，仅复制到剪贴板");
         await navigator.clipboard.writeText(text);
-        toast.info("文本已复制到剪贴板，请手动粘贴");
+        toast.info("文字已複製至剪貼簿，請手動貼上");
       }
     } catch (error) {
       console.error("❌ 粘贴文本失败:", error);
-      toast.error("粘贴失败", {
-        description: "请检查辅助功能权限。文本已复制到剪贴板 - 请手动使用 Cmd+V 粘贴。"
+      toast.error("貼上失敗", {
+        description: "請檢查輔助使用權限。文字已複製至剪貼簿 — 請手動使用 Cmd+V 貼上。"
       });
     }
   }, []);
@@ -294,7 +294,7 @@ export default function App() {
       
       // 注意：不在这里保存到数据库，由 useRecording.js 统一处理保存逻辑
 
-      toast.success("🎤 语音识别完成，AI正在优化文本...");
+      toast.success("🎤 語音辨識完成，AI 正在最佳化文字...");
     } else {
       console.log("❌ 转录失败或无文本:", transcriptionResult);
     }
@@ -312,7 +312,7 @@ export default function App() {
       await safePaste(optimizedResult.text);
       console.log("✅ AI优化文本粘贴完成");
       
-      toast.success("🤖 AI文本优化完成并已自动粘贴！");
+      toast.success("🤖 AI 文字最佳化完成並已自動貼上！");
       console.log('AI优化文本已设置:', optimizedResult.text);
     } else {
       console.warn('AI优化结果无效，使用原始文本:', optimizedResult);
@@ -320,7 +320,7 @@ export default function App() {
       if (originalText) {
         console.log("📋 AI优化失败，粘贴原始文本:", originalText);
         await safePaste(originalText);
-        toast.info("AI优化失败，已粘贴原始识别文本");
+        toast.info("AI 最佳化失敗，已貼上原始辨識文字");
       }
     }
   }, [safePaste, originalText]);
@@ -350,17 +350,17 @@ export default function App() {
       if (window.electronAPI) {
         const result = await window.electronAPI.copyText(text);
         if (result.success) {
-          toast.success("文本已复制到剪贴板");
+          toast.success("文字已複製至剪貼簿");
         } else {
-          throw new Error(result.error || "复制失败");
+          throw new Error(result.error || "複製失敗");
         }
       } else {
         await navigator.clipboard.writeText(text);
-        toast.success("文本已复制到剪贴板");
+        toast.success("文字已複製至剪貼簿");
       }
     } catch (error) {
       console.error("复制文本失败:", error);
-      toast.error(`无法复制文本到剪贴板: ${error.message}`);
+      toast.error(`無法複製文字至剪貼簿: ${error.message}`);
     }
   };
 
@@ -370,19 +370,19 @@ export default function App() {
     try {
       if (window.electronAPI) {
         await window.electronAPI.exportTranscriptions('txt');
-        toast.success("文本已导出到文件");
+        toast.success("文字已匯出至檔案");
       } else {
         // Web环境下载文件
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `蛐蛐转录_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+        a.download = `蛐蛐轉錄_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
         a.click();
         URL.revokeObjectURL(url);
       }
     } catch (error) {
-      toast.error("无法导出文本文件");
+      toast.error("無法匯出文字檔案");
     }
   };
 
@@ -390,17 +390,17 @@ export default function App() {
   const handleDownloadModels = useCallback(async () => {
     try {
       // 显示开始下载的提示
-      toast.info("📥 开始下载模型文件...");
+      toast.info("📥 開始下載模型檔案...");
       
       const result = await modelStatus.downloadModels();
       if (result.success) {
-        toast.success("🎉 模型下载完成，正在加载...");
+        toast.success("🎉 模型下載完成，正在載入...");
       } else {
-        toast.error(`❌ 模型下载失败: ${result.error}`);
+        toast.error(`❌ 模型下載失敗: ${result.error}`);
       }
     } catch (error) {
       console.error('下载模型失败:', error);
-      toast.error(`❌ 模型下载失败: ${error.message}`);
+      toast.error(`❌ 模型下載失敗: ${error.message}`);
     }
   }, [modelStatus]);
 
@@ -408,27 +408,27 @@ export default function App() {
   const toggleRecording = useCallback(() => {
     // 检查模型状态
     if (modelStatus.stage === 'need_download') {
-      toast.warning("📥 请先下载AI模型文件");
+      toast.warning("📥 請先下載 AI 模型檔案");
       return;
     }
     
     if (modelStatus.stage === 'downloading') {
-      toast.warning("⬇️ 模型正在下载中，请稍候...");
+      toast.warning("⬇️ 模型正在下載中，請稍候...");
       return;
     }
     
     if (modelStatus.stage === 'loading') {
-      toast.warning("🤖 模型正在加载中，请稍候...");
+      toast.warning("🤖 模型正在載入中，請稍候...");
       return;
     }
     
     if (modelStatus.stage === 'error') {
-      toast.error(`❌ 模型错误: ${modelStatus.error}`);
+      toast.error(`❌ 模型錯誤: ${modelStatus.error}`);
       return;
     }
     
     if (!modelStatus.isReady) {
-      toast.warning("⏳ 模型未就绪，请稍候...");
+      toast.warning("⏳ 模型尚未就緒，請稍候...");
       return;
     }
 
@@ -578,11 +578,11 @@ export default function App() {
     if (!modelStatus.isReady) {
       return {
         className: `${baseClasses} bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 cursor-not-allowed opacity-70`,
-        tooltip: modelStatus.stage === 'need_download' ? "请先下载AI模型文件" :
-                 modelStatus.stage === 'downloading' ? `模型下载中... ${modelStatus.downloadProgress || 0}%` :
-                 modelStatus.stage === 'loading' ? "模型加载中，请稍候..." :
-                 modelStatus.stage === 'error' ? `模型错误: ${modelStatus.error}` :
-                 "模型未就绪，请稍候...",
+        tooltip: modelStatus.stage === 'need_download' ? "請先下載 AI 模型檔案" :
+                 modelStatus.stage === 'downloading' ? `模型下載中... ${modelStatus.downloadProgress || 0}%` :
+                 modelStatus.stage === 'loading' ? "模型載入中，請稍候..." :
+                 modelStatus.stage === 'error' ? `模型錯誤: ${modelStatus.error}` :
+                 "模型尚未就緒，請稍候...",
         disabled: true
       };
     }
@@ -591,37 +591,37 @@ export default function App() {
       case "idle":
         return {
           className: `${buttonStyle} cursor-pointer`,
-          tooltip: `按 [${hotkey}] 开始录音`,
+          tooltip: `按 [${hotkey}] 開始錄音`,
           disabled: false
         };
       case "hover":
         return {
           className: `${buttonStyle} scale-105 shadow-2xl cursor-pointer`,
-          tooltip: `按 [${hotkey}] 开始录音`,
+          tooltip: `按 [${hotkey}] 開始錄音`,
           disabled: false
         };
       case "recording":
         return {
           className: `${buttonStyle} recording-pulse cursor-pointer`,
-          tooltip: "正在录音...",
+          tooltip: "正在錄音...",
           disabled: false
         };
       case "processing":
         return {
           className: `${buttonStyle} cursor-not-allowed opacity-70`,
-          tooltip: "正在识别语音...",
+          tooltip: "正在辨識語音...",
           disabled: true
         };
       case "optimizing":
         return {
           className: `${buttonStyle} cursor-not-allowed opacity-70`,
-          tooltip: "AI正在优化文本...",
+          tooltip: "AI 正在最佳化文字...",
           disabled: true
         };
       default:
         return {
           className: `${buttonStyle} cursor-pointer`,
-          tooltip: "点击开始录音",
+          tooltip: "點擊開始錄音",
           disabled: false
         };
     }
@@ -644,7 +644,7 @@ export default function App() {
             蛐蛐
           </h1>
           <div className="flex items-center space-x-3 non-draggable">
-            <Tooltip content="历史记录" position="bottom">
+            <Tooltip content="歷史記錄" position="bottom">
               <button
                 onClick={handleOpenHistory}
                 className="p-3 hover:bg-white/70 dark:hover:bg-gray-700/70 rounded-xl transition-colors shadow-sm"
@@ -652,7 +652,7 @@ export default function App() {
                 <History className="w-6 h-6 text-gray-700 dark:text-gray-300" />
               </button>
             </Tooltip>
-            <Tooltip content="设置" position="bottom">
+            <Tooltip content="設定" position="bottom">
               <button
                 onClick={handleOpenSettings}
                 className="p-3 hover:bg-white/70 dark:hover:bg-gray-700/70 rounded-xl transition-colors shadow-sm"
@@ -704,23 +704,23 @@ export default function App() {
           
           <p className="mt-4 status-text text-gray-700 dark:text-gray-300">
             {modelStatus.stage === 'need_download' ? (
-              "需要下载AI模型文件才能开始使用"
+              "需要下載 AI 模型檔案才能開始使用"
             ) : modelStatus.stage === 'downloading' ? (
-              `正在下载模型文件... ${modelStatus.downloadProgress || 0}%`
+              `正在下載模型檔案... ${modelStatus.downloadProgress || 0}%`
             ) : modelStatus.stage === 'loading' ? (
-              "模型加载中，请稍候..."
+              "模型載入中，請稍候..."
             ) : modelStatus.stage === 'error' ? (
-              `模型错误: ${modelStatus.error}`
+              `模型錯誤: ${modelStatus.error}`
             ) : !modelStatus.isReady ? (
-              "模型未就绪，请稍候..."
+              "模型尚未就緒，請稍候..."
             ) : micState === "recording" ? (
-              "正在录音，再次点击停止"
+              "正在錄音，再次點擊停止"
             ) : micState === "processing" ? (
-              "正在识别语音..."
+              "正在辨識語音..."
             ) : micState === "optimizing" ? (
-              "AI正在优化文本，请稍候..."
+              "AI 正在最佳化文字，請稍候..."
             ) : (
-              `点击麦克风或按 ${hotkey} 开始录音`
+              `點擊麥克風或按 ${hotkey} 開始錄音`
             )}
           </p>
         </div>

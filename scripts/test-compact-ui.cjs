@@ -1,14 +1,14 @@
 const {chromium}=require('playwright-core');
 const assert=require('node:assert/strict');
 (async()=>{
- const browser=await chromium.launch({channel:'msedge',headless:true});
+ const browser=await chromium.launch({channel:process.env.PLAYWRIGHT_CHANNEL||(process.platform==='win32'?'msedge':'chrome'),headless:true});
  const context=await browser.newContext();
  await context.addInitScript(()=>{
   window.calls=[];window.handlers={};
   const api={runtime:'tauri',getInterfaceMode:async()=> 'compact',setDictationPhase:async()=>{},log:async()=>{},getSetting:async(_,fallback)=>false,
    checkModelFiles:async()=>({success:true,models_downloaded:true}),checkFunASRStatus:async()=>({success:true,models_initialized:true}),
    setRecordingState:async v=>window.calls.push(['recording',v]),reportDictationError:async e=>window.calls.push(['error',e]),
-   transcribeAudio:async bytes=>{window.calls.push(['transcribe',bytes.length]);return{success:true,text:'测试听写'}},
+   transcribeAudio:async bytes=>{window.calls.push(['transcribe',bytes.length]);return{success:true,text:'測試聽寫'}},
    saveTranscription:async row=>window.calls.push(['save',row.text]),pasteText:async t=>{window.calls.push(['paste',t]);return{success:true}},
   };
   for(const name of ['onInterfaceModeChanged','onHotkeyTriggered','onProcessingUpdate','onSettingsUpdate','onModelDownloadProgress'])api[name]=fn=>{window.handlers[name]=fn;return()=>delete window.handlers[name]};
