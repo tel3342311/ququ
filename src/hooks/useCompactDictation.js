@@ -17,7 +17,7 @@ export function useCompactDictation() {
     return phaseQueue.current;
   };
   if(!session.current)session.current=new RecordingSession({
-    getUserMedia:()=>navigator.mediaDevices.getUserMedia({audio:{sampleRate:16000,channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}}),
+    getUserMedia:()=>navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}),
     createRecorder:stream=>new MediaRecorder(stream,recordingOptions(MediaRecorder)),
     onRecording:recording=>{
       if(recording)setPhase('recording');

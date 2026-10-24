@@ -206,6 +206,11 @@ impl Indicator {
             .mode
             == crate::interface::Mode::Classic
         {
+            if recording {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                }
+            }
             return Ok(());
         }
         let generation = self.generation.fetch_add(1, Ordering::AcqRel) + 1;

@@ -282,6 +282,7 @@ async fn desktop_command(
             state.hotkeys.set_recording(recording);
             if state.recording.swap(recording, Ordering::SeqCst) != recording {
                 state.indicator.set_recording(&app, recording)?;
+                sync_recording_tray(&app, recording);
             }
             Ok(json!({"success":true}))
         }
@@ -607,7 +608,7 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         None::<&str>,
     )?;
     let show = MenuItem::with_id(app, "show", "开始/停止听写", true, None::<&str>)?;
-    let cancel = MenuItem::with_id(app, "cancel", "取消听写", true, None::<&str>)?;
+    let cancel = MenuItem::with_id(app, "cancel", "取消听写", false, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "设置", true, None::<&str>)?;
     let history = MenuItem::with_id(app, "history", "历史记录", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
@@ -731,6 +732,24 @@ fn sync_mode_menu(app: &AppHandle, mode: interface::Mode) {
         if let Some(item) = menu.get(id) {
             if let Some(item) = item.as_check_menuitem() {
                 let _ = item.set_checked(checked);
+            }
+        }
+    }
+}
+
+fn sync_recording_tray(app: &AppHandle, recording: bool) {
+    if let Some(tray) = app.tray_by_id("ququ") {
+        let tooltip = if recording {
+            "蛐蛐 - 正在录音..."
+        } else {
+            "蛐蛐"
+        };
+        let _ = tray.set_tooltip(Some(tooltip));
+    }
+    if let Some(menu) = app.try_state::<tauri::menu::Menu<tauri::Wry>>() {
+        if let Some(item) = menu.get("cancel") {
+            if let Some(item) = item.as_menuitem() {
+                let _ = item.set_enabled(recording);
             }
         }
     }
