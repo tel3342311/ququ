@@ -305,8 +305,12 @@ npm run build:rust -- --config src-tauri/tauri.macos.conf.json --target x86_64-a
 
 ### 3. GitHub Actions 自动云端打包
 
-项目已配置自动化工作流 [`.github/workflows/release.yml`](.github/workflows/release.yml)：
-- 推送版本标签（如 `git tag v1.0.0 && git push origin v1.0.0`）或在 GitHub Actions 页面手动运行 `Release Build` 工作流。
-- 自动化任务将分别在 `windows-latest` 和 `macos-latest` 虚拟机中编译并打包，产出 Windows x64 与 macOS（Apple Silicon 及 Intel）的全套安装包及 Artifacts。
+项目已配置自动化 CI/CD 工作流：
+- **macOS 专用构建工作流** [`.github/workflows/macos.yml`](.github/workflows/macos.yml)：
+  - 代码推送或 PR 时自动在 macOS 14 虚拟机上并行构建 Apple Silicon (`aarch64`) 与 Intel (`x64`) 版本的 `.dmg` 安装包与 `.app.zip` 程序包，并自动上传 Artifacts。
+  - 支持在 GitHub Actions 页面手动选择架构触发（`workflow_dispatch`，可选择 `all`、`arm64` 或 `x64`）。
+- **全平台发布工作流** [`.github/workflows/release.yml`](.github/workflows/release.yml)：
+  - 推送版本标签（如 `git tag v1.0.0 && git push origin v1.0.0`）或手动触发。
+  - 自动化任务将分别在 Windows 和 macOS 虚拟机中编译全套安装包，并直接附加至 GitHub Release。
 
 > **注**：以上构建命令专用于 Rust/Tauri 原生版本，原有 `build:win` / `build:mac` 仍属于旧版 Electron/Python 架构。

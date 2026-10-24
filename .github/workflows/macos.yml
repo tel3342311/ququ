@@ -1,0 +1,119 @@
+name: macOS Build
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - '**'
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: 'Architecture to build'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - arm64
+          - x64
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: Build macOS (${{ matrix.name }})
+    runs-on: macos-14
+    if: |
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.arch == 'all' ||
+      github.event.inputs.arch == matrix.arch
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            arch: arm64
+            name: Apple Silicon
+          - target: x86_64-apple-darwin
+            arch: x64
+            name: Intel
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Run Desktop unit tests
+        run: npm run test:desktop
+
+      - name: Build frontend
+        run: pnpm run build:renderer
+
+      - name: Build macOS DMG & App (${{ matrix.target }})
+        run: |
+          if [ -n "${{ secrets.APPLE_SIGNING_IDENTITY }}" ]; then
+            export APPLE_SIGNING_IDENTITY="${{ secrets.APPLE_SIGNING_IDENTITY }}"
+            export APPLE_ID="${{ secrets.APPLE_ID }}"
+            export APPLE_PASSWORD="${{ secrets.APPLE_PASSWORD }}"
+            export APPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}"
+          fi
+          npm run build:rust -- --config src-tauri/tauri.macos.conf.json --target ${{ matrix.target }}
+
+      - name: Package macOS App Bundle
+        run: |
+          BUNDLE_DIR="src-tauri/target/${{ matrix.target }}/release/bundle"
+          if [ -d "$BUNDLE_DIR/macos" ]; then
+            cd "$BUNDLE_DIR/macos"
+            APP_NAME=$(find . -maxdepth 1 -name "*.app" -exec basename {} \; | head -n 1)
+            if [ -n "$APP_NAME" ]; then
+              echo "Packaging $APP_NAME into ququ-macos-${{ matrix.arch }}.app.zip..."
+              zip -r -y "ququ-macos-${{ matrix.arch }}.app.zip" "$APP_NAME"
+            fi
+          fi
+
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ququ-macos-${{ matrix.arch }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.zip
+          if-no-files-found: error
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
