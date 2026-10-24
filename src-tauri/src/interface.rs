@@ -30,6 +30,12 @@ impl Mode {
             })
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Selection {
+    Reveal,
+    Keep,
+    Switch,
+}
 pub struct Interface {
     pub mode: Mode,
     pub phase: String,
@@ -47,6 +53,17 @@ impl Interface {
         } else {
             Err("Wait for dictation to finish before changing interface mode".into())
         }
+    }
+    pub fn select(&self, target: Mode) -> Result<Selection, String> {
+        if target == Mode::Classic && self.mode == Mode::Classic {
+            return Ok(Selection::Reveal);
+        }
+        self.allow_switch()?;
+        Ok(if target == self.mode {
+            Selection::Keep
+        } else {
+            Selection::Switch
+        })
     }
     pub fn set_phase(&mut self, phase: &str) -> Result<(), String> {
         if !["idle", "starting", "recording", "processing", "optimizing"].contains(&phase) {
@@ -82,5 +99,20 @@ mod tests {
         state.set_phase("idle").unwrap();
         assert!(state.allow_switch().is_ok());
         assert!(state.set_phase("unknown").is_err());
+    }
+    #[test]
+    fn reselecting_classic_reveals_window_in_every_phase() {
+        let mut state = Interface::new(Mode::Classic);
+        for phase in ["idle", "starting", "recording", "processing", "optimizing"] {
+            state.set_phase(phase).unwrap();
+            assert_eq!(state.select(Mode::Classic), Ok(Selection::Reveal));
+        }
+        state.set_phase("recording").unwrap();
+        assert!(state.select(Mode::Compact).is_err());
+        state.set_phase("idle").unwrap();
+        assert_eq!(state.select(Mode::Compact), Ok(Selection::Switch));
+        let compact = Interface::new(Mode::Compact);
+        assert_eq!(compact.select(Mode::Compact), Ok(Selection::Keep));
+        assert_eq!(compact.select(Mode::Classic), Ok(Selection::Switch));
     }
 }

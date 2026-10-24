@@ -689,8 +689,14 @@ fn set_interface_mode(app: &AppHandle, name: &str) -> Result<(), String> {
     let mode = interface::Mode::parse(name)?;
     let state = app.state::<AppState>();
     let mut current = state.interface.lock().map_err(|e| e.to_string())?;
-    current.allow_switch()?;
-    if current.mode != mode {
+    let selection = current.select(mode)?;
+    if selection == interface::Selection::Reveal {
+        let window = app
+            .get_webview_window("main")
+            .ok_or("Dictation window unavailable")?;
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+    } else if selection == interface::Selection::Switch {
         let previous = current.mode;
         if let Err(error) = state.indicator.apply_mode(app, mode) {
             let _ = state.indicator.apply_mode(app, previous);
@@ -707,8 +713,6 @@ fn set_interface_mode(app: &AppHandle, name: &str) -> Result<(), String> {
             });
         }
         current.mode = mode;
-    } else if mode == interface::Mode::Classic {
-        state.indicator.apply_mode(app, mode)?;
     }
     drop(current);
     sync_mode_menu(app, mode);
