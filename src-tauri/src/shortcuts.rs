@@ -1,6 +1,10 @@
 #[path = "keyboard/mod.rs"]
 mod keyboard;
 use keyboard::machine::{Action, Machine};
+#[cfg(windows)]
+use keyboard::windows as platform;
+#[cfg(target_os = "macos")]
+use keyboard::macos as platform;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
@@ -18,7 +22,7 @@ pub struct HotkeyConfig {
     #[serde(default)]
     pub mode: HotkeyMode,
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Binding {
     Single(u32),
     Chord(Shortcut),
@@ -33,18 +37,18 @@ struct State {
     pressed: Vec<bool>,
     chord_down: bool,
     hold_started: bool,
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     physical_activation: u32,
 }
 pub struct HotkeyManager {
     app: AppHandle,
     state: Arc<Mutex<State>>,
     operation: Mutex<()>,
-    #[cfg(windows)]
-    _hook: Option<keyboard::windows::Hook>,
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
+    _hook: Option<platform::Hook>,
+    #[cfg(any(windows, target_os = "macos"))]
     hook_error: Option<String>,
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     worker: Option<std::thread::JoinHandle<()>>,
 }
 fn emit(app: &AppHandle, action: Action) {
@@ -62,6 +66,7 @@ fn emit(app: &AppHandle, action: Action) {
     }
 }
 fn single(key: &str) -> Option<u32> {
+    #[cfg(windows)]
     match key {
         "ControlLeft" => Some(0xA2),
         "ControlRight" => Some(0xA3),
@@ -73,15 +78,33 @@ fn single(key: &str) -> Option<u32> {
         "MetaRight" => Some(0x5C),
         _ => None,
     }
+    #[cfg(target_os = "macos")]
+    match key {
+        "ControlLeft" => Some(keyboard::macos::KEY_CONTROL_LEFT),
+        "ControlRight" => Some(keyboard::macos::KEY_CONTROL_RIGHT),
+        "ShiftLeft" => Some(keyboard::macos::KEY_SHIFT_LEFT),
+        "ShiftRight" => Some(keyboard::macos::KEY_SHIFT_RIGHT),
+        "AltLeft" => Some(keyboard::macos::KEY_ALT_LEFT),
+        "AltRight" => Some(keyboard::macos::KEY_ALT_RIGHT),
+        "MetaLeft" => Some(keyboard::macos::KEY_COMMAND_LEFT),
+        "MetaRight" => Some(keyboard::macos::KEY_COMMAND_RIGHT),
+        _ => None,
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    match key {
+        "ControlLeft" | "ControlRight" | "ShiftLeft" | "ShiftRight" | "AltLeft" | "AltRight"
+        | "MetaLeft" | "MetaRight" => Some(0),
+        _ => None,
+    }
 }
 fn parse(key: &str) -> Result<Binding, String> {
     if let Some(vk) = single(key) {
-        #[cfg(not(windows))]
+        #[cfg(not(any(windows, target_os = "macos")))]
         {
             let _ = vk;
             return Err("Single modifier hotkeys are currently supported on Windows only. Use a key combination on this platform.".into());
         }
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "macos"))]
         return Ok(Binding::Single(vk));
     }
     let shortcut = key
@@ -118,11 +141,17 @@ impl HotkeyManager {
                     windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(vk as i32) < 0
                 };
         }
+        #[cfg(target_os = "macos")]
+        for (key, down) in initial.pressed.iter_mut().enumerate() {
+            if key < 128 {
+                *down = keyboard::macos::is_key_down(key as u16);
+            }
+        }
         let state = Arc::new(Mutex::new(initial));
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "macos"))]
         let hook_result =
-            (|| -> Result<(keyboard::windows::Hook, std::thread::JoinHandle<()>), String> {
-                let (hook, rx) = keyboard::windows::Hook::start()?;
+            (|| -> Result<(platform::Hook, std::thread::JoinHandle<()>), String> {
+                let (hook, rx) = platform::Hook::start()?;
                 let state = Arc::clone(&state);
                 let app = app.clone();
                 let worker = std::thread::Builder::new()
@@ -169,7 +198,7 @@ impl HotkeyManager {
                     .map_err(|e| e.to_string())?;
                 Ok((hook, worker))
             })();
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "macos"))]
         let (hook, worker, hook_error) = match hook_result {
             Ok((hook, worker)) => (Some(hook), Some(worker), None),
             Err(error) => (None, None, Some(error)),
@@ -178,11 +207,11 @@ impl HotkeyManager {
             app,
             state,
             operation: Mutex::new(()),
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "macos"))]
             _hook: hook,
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "macos"))]
             hook_error,
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "macos"))]
             worker,
         })
     }
@@ -191,7 +220,7 @@ impl HotkeyManager {
     }
     pub fn configure(&self, config: HotkeyConfig) -> Result<(), String> {
         let binding = parse(config.key.trim())?;
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "macos"))]
         if matches!(binding, Binding::Single(_)) {
             if let Some(error) = &self.hook_error {
                 return Err(error.clone());
@@ -210,13 +239,13 @@ impl HotkeyManager {
             if !same {
                 let state = Arc::clone(&self.state);
                 let expected = shortcut.id();
-                #[cfg(windows)]
+                #[cfg(any(windows, target_os = "macos"))]
                 let provenance = self._hook.as_ref().map(|hook| hook.provenance());
                 self.app.global_shortcut().on_shortcut(*shortcut,move |app,_,event| {
                     let Ok(mut s)=state.lock() else {return};
                     if s.capture || !matches!(s.binding.as_ref(),Some(Binding::Chord(key)) if key.id()==expected) {return;}
                     let pressed=event.state==ShortcutState::Pressed;
-                    #[cfg(windows)]
+                    #[cfg(any(windows, target_os = "macos"))]
                     if pressed {
                         if let Some(provenance)=&provenance {
                             let count=provenance.count();
@@ -253,7 +282,7 @@ impl HotkeyManager {
             let cancel = s.machine.suspend().is_some() || s.hold_started;
             s.config = Some(config.clone());
             s.binding = Some(binding);
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "macos"))]
             if let Some(hook) = &self._hook {
                 let (vk, mods) = match &s.binding {
                     Some(Binding::Chord(key)) => {
@@ -275,7 +304,7 @@ impl HotkeyManager {
             s.machine = Machine::default();
             s.machine.hold = config.mode == HotkeyMode::Hold;
             s.chord_down = false;
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "macos"))]
             if let Some(hook) = &self._hook {
                 s.physical_activation = hook.provenance().count();
             }
@@ -290,7 +319,7 @@ impl HotkeyManager {
         if let Ok(mut s) = self.state.lock() {
             s.capture = capture;
             s.chord_down = false;
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "macos"))]
             if let Some(hook) = &self._hook {
                 hook.provenance().set_capture(capture);
                 s.physical_activation = hook.provenance().count();
@@ -341,7 +370,7 @@ impl HotkeyManager {
 impl Drop for HotkeyManager {
     fn drop(&mut self) {
         let _ = self.unregister();
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "macos"))]
         {
             // Closing the hook drops the channel sender before joining its worker.
             drop(self._hook.take());
@@ -376,5 +405,35 @@ mod tests {
             serde_json::to_value(&hold).unwrap(),
             serde_json::json!({"key":"ControlRight","mode":"hold"})
         );
+    }
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn single_modifiers_parse_on_macos() {
+        let cases = [
+            ("ControlLeft", keyboard::macos::KEY_CONTROL_LEFT),
+            ("ControlRight", keyboard::macos::KEY_CONTROL_RIGHT),
+            ("ShiftLeft", keyboard::macos::KEY_SHIFT_LEFT),
+            ("ShiftRight", keyboard::macos::KEY_SHIFT_RIGHT),
+            ("AltLeft", keyboard::macos::KEY_ALT_LEFT),
+            ("AltRight", keyboard::macos::KEY_ALT_RIGHT),
+            ("MetaLeft", keyboard::macos::KEY_COMMAND_LEFT),
+            ("MetaRight", keyboard::macos::KEY_COMMAND_RIGHT),
+        ];
+        for (name, expected_vk) in cases {
+            match parse(name) {
+                Ok(Binding::Single(vk)) => assert_eq!(vk, expected_vk, "{name}"),
+                other => panic!("expected Binding::Single({expected_vk}) for {name}, got {other:?}"),
+            }
+        }
+    }
+    #[test]
+    #[cfg(not(any(windows, target_os = "macos")))]
+    fn single_modifiers_fail_on_linux_with_platform_message() {
+        for key in ["ControlLeft", "AltRight", "MetaLeft"] {
+            assert_eq!(
+                parse(key).err().as_deref(),
+                Some("Single modifier hotkeys are currently supported on Windows only. Use a key combination on this platform.")
+            );
+        }
     }
 }
