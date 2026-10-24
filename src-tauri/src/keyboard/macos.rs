@@ -232,10 +232,10 @@ unsafe extern "C" fn callback(
                 return;
             }
             let flags = CGEventGetFlags(event);
-            let pressed = match modifier_mask(keycode) {
-                Some(mask) => (flags & mask) != 0,
-                None => !context.down[keycode],
+            let Some(mask) = modifier_mask(keycode) else {
+                return;
             };
+            let pressed = (flags & mask) != 0;
             let repeat = pressed && context.down[keycode];
             context.down[keycode] = pressed;
             if repeat {

@@ -45,11 +45,18 @@ pub struct HotkeyManager {
     state: Arc<Mutex<State>>,
     operation: Mutex<()>,
     #[cfg(any(windows, target_os = "macos"))]
-    _hook: Option<platform::Hook>,
-    #[cfg(any(windows, target_os = "macos"))]
-    hook_error: Option<String>,
-    #[cfg(any(windows, target_os = "macos"))]
-    worker: Option<std::thread::JoinHandle<()>>,
+    runtime: Mutex<Option<(platform::Hook, std::thread::JoinHandle<()>)>>,
+}
+
+#[cfg(any(windows, target_os = "macos"))]
+fn ensure_started<T>(
+    slot: &mut Option<T>,
+    start: impl FnOnce() -> Result<T, String>,
+) -> Result<(), String> {
+    if slot.is_none() {
+        *slot = Some(start()?);
+    }
+    Ok(())
 }
 fn emit(app: &AppHandle, action: Action) {
     if let Some(main) = app.get_webview_window("main") {
@@ -148,72 +155,76 @@ impl HotkeyManager {
             }
         }
         let state = Arc::new(Mutex::new(initial));
-        #[cfg(any(windows, target_os = "macos"))]
-        let hook_result =
-            (|| -> Result<(platform::Hook, std::thread::JoinHandle<()>), String> {
-                let (hook, rx) = platform::Hook::start()?;
-                let state = Arc::clone(&state);
-                let app = app.clone();
-                let worker = std::thread::Builder::new()
-                    .name("ququ-hotkey-events".into())
-                    .spawn(move || {
-                        while let Ok(input) = rx.recv() {
-                            let Ok(mut s) = state.lock() else { break };
-                            let action = {
-                                let idx = input.key as usize;
-                                if idx >= 256 {
-                                    continue;
-                                }
-                                let repeated = input.pressed && s.pressed[idx];
-                                s.pressed[idx] = input.pressed;
-                                if repeated {
-                                    continue;
-                                }
-                                if s.capture || input.captured {
-                                    continue;
-                                }
-                                if let Some(Binding::Single(vk)) = s.binding {
-                                    if s.recording
-                                        && s.machine.hold
-                                        && input.key == vk
-                                        && input.pressed
-                                    {
-                                        continue;
-                                    }
-                                    let other = s
-                                        .pressed
-                                        .iter()
-                                        .enumerate()
-                                        .any(|(i, down)| *down && i != vk as usize);
-                                    s.machine.key(input.key == vk, input.pressed, false, other)
-                                } else {
-                                    None
-                                }
-                            };
-                            if let Some(action) = action {
-                                emit(&app, action);
-                            }
-                        }
-                    })
-                    .map_err(|e| e.to_string())?;
-                Ok((hook, worker))
-            })();
-        #[cfg(any(windows, target_os = "macos"))]
-        let (hook, worker, hook_error) = match hook_result {
-            Ok((hook, worker)) => (Some(hook), Some(worker), None),
-            Err(error) => (None, None, Some(error)),
-        };
-        Ok(Self {
+        let manager = Self {
             app,
             state,
             operation: Mutex::new(()),
             #[cfg(any(windows, target_os = "macos"))]
-            _hook: hook,
-            #[cfg(any(windows, target_os = "macos"))]
-            hook_error,
-            #[cfg(any(windows, target_os = "macos"))]
-            worker,
+            runtime: Mutex::new(None),
+        };
+        #[cfg(windows)]
+        let _ = manager.start_runtime();
+        Ok(manager)
+    }
+    #[cfg(any(windows, target_os = "macos"))]
+    fn start_runtime(&self) -> Result<(), String> {
+        let mut runtime = self.runtime.lock().map_err(|e| e.to_string())?;
+        ensure_started(&mut runtime, || {
+            let (hook, rx) = platform::Hook::start()?;
+            let state = Arc::clone(&self.state);
+            let app = self.app.clone();
+            let worker = std::thread::Builder::new()
+                .name("ququ-hotkey-events".into())
+                .spawn(move || {
+                    while let Ok(input) = rx.recv() {
+                        let Ok(mut s) = state.lock() else { break };
+                        let action = {
+                            let idx = input.key as usize;
+                            if idx >= 256 {
+                                continue;
+                            }
+                            let repeated = input.pressed && s.pressed[idx];
+                            s.pressed[idx] = input.pressed;
+                            if repeated {
+                                continue;
+                            }
+                            if s.capture || input.captured {
+                                continue;
+                            }
+                            if let Some(Binding::Single(vk)) = s.binding {
+                                if s.recording
+                                    && s.machine.hold
+                                    && input.key == vk
+                                    && input.pressed
+                                {
+                                    continue;
+                                }
+                                let other = s
+                                    .pressed
+                                    .iter()
+                                    .enumerate()
+                                    .any(|(i, down)| *down && i != vk as usize);
+                                s.machine.key(input.key == vk, input.pressed, false, other)
+                            } else {
+                                None
+                            }
+                        };
+                        if let Some(action) = action {
+                            emit(&app, action);
+                        }
+                    }
+                })
+                .map_err(|e| e.to_string())?;
+            Ok((hook, worker))
         })
+    }
+    #[cfg(any(windows, target_os = "macos"))]
+    fn provenance(&self) -> Option<Arc<platform::Provenance>> {
+        self.runtime
+            .lock()
+            .ok()?
+            .as_ref()
+            .map(|(hook, _)| hook.provenance())
     }
     pub fn current(&self) -> Result<Option<HotkeyConfig>, String> {
         Ok(self.state.lock().map_err(|e| e.to_string())?.config.clone())
@@ -222,9 +233,7 @@ impl HotkeyManager {
         let binding = parse(config.key.trim())?;
         #[cfg(any(windows, target_os = "macos"))]
         if matches!(binding, Binding::Single(_)) {
-            if let Some(error) = &self.hook_error {
-                return Err(error.clone());
-            }
+            self.start_runtime()?;
         }
         let _operation = self.operation.lock().map_err(|e| e.to_string())?;
         let old = self
@@ -240,7 +249,7 @@ impl HotkeyManager {
                 let state = Arc::clone(&self.state);
                 let expected = shortcut.id();
                 #[cfg(any(windows, target_os = "macos"))]
-                let provenance = self._hook.as_ref().map(|hook| hook.provenance());
+                let provenance = self.provenance();
                 self.app.global_shortcut().on_shortcut(*shortcut,move |app,_,event| {
                     let Ok(mut s)=state.lock() else {return};
                     if s.capture || !matches!(s.binding.as_ref(),Some(Binding::Chord(key)) if key.id()==expected) {return;}
@@ -283,7 +292,7 @@ impl HotkeyManager {
             s.config = Some(config.clone());
             s.binding = Some(binding);
             #[cfg(any(windows, target_os = "macos"))]
-            if let Some(hook) = &self._hook {
+            if let Some(provenance) = self.provenance() {
                 let (vk, mods) = match &s.binding {
                     Some(Binding::Chord(key)) => {
                         use tauri_plugin_global_shortcut::Modifiers;
@@ -299,14 +308,14 @@ impl HotkeyManager {
                     }
                     _ => (0, 0),
                 };
-                s.physical_activation = hook.provenance().configure(vk, mods);
+                s.physical_activation = provenance.configure(vk, mods);
             }
             s.machine = Machine::default();
             s.machine.hold = config.mode == HotkeyMode::Hold;
             s.chord_down = false;
             #[cfg(any(windows, target_os = "macos"))]
-            if let Some(hook) = &self._hook {
-                s.physical_activation = hook.provenance().count();
+            if let Some(provenance) = self.provenance() {
+                s.physical_activation = provenance.count();
             }
             s.hold_started = false;
             if cancel {
@@ -320,9 +329,9 @@ impl HotkeyManager {
             s.capture = capture;
             s.chord_down = false;
             #[cfg(any(windows, target_os = "macos"))]
-            if let Some(hook) = &self._hook {
-                hook.provenance().set_capture(capture);
-                s.physical_activation = hook.provenance().count();
+            if let Some(provenance) = self.provenance() {
+                provenance.set_capture(capture);
+                s.physical_activation = provenance.count();
             }
             if capture {
                 let cancel = s.machine.suspend().is_some() || s.hold_started;
@@ -373,8 +382,9 @@ impl Drop for HotkeyManager {
         #[cfg(any(windows, target_os = "macos"))]
         {
             // Closing the hook drops the channel sender before joining its worker.
-            drop(self._hook.take());
-            if let Some(worker) = self.worker.take() {
+            let runtime = self.runtime.get_mut().ok().and_then(Option::take);
+            if let Some((hook, worker)) = runtime {
+                drop(hook);
                 let _ = worker.join();
             }
         }
@@ -405,6 +415,31 @@ mod tests {
             serde_json::to_value(&hold).unwrap(),
             serde_json::json!({"key":"ControlRight","mode":"hold"})
         );
+    }
+    #[test]
+    #[cfg(any(windows, target_os = "macos"))]
+    fn runtime_starts_lazily_and_retries_after_failure() {
+        let mut slot: Option<u32> = None;
+        let mut calls = 0;
+        assert!(ensure_started(&mut slot, || {
+            calls += 1;
+            Err("permission".to_string())
+        })
+        .is_err());
+        assert!(slot.is_none());
+        assert!(ensure_started(&mut slot, || {
+            calls += 1;
+            Ok(7)
+        })
+        .is_ok());
+        assert_eq!(slot, Some(7));
+        assert!(ensure_started(&mut slot, || {
+            calls += 1;
+            Ok(8)
+        })
+        .is_ok());
+        assert_eq!(slot, Some(7));
+        assert_eq!(calls, 2);
     }
     #[test]
     #[cfg(target_os = "macos")]
