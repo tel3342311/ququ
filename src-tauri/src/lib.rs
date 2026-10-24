@@ -694,6 +694,7 @@ fn set_interface_mode(app: &AppHandle, name: &str) -> Result<(), String> {
         let window = app
             .get_webview_window("main")
             .ok_or("Dictation window unavailable")?;
+        window.unminimize().map_err(|e| e.to_string())?;
         window.show().map_err(|e| e.to_string())?;
         window.set_focus().map_err(|e| e.to_string())?;
     } else if selection == interface::Selection::Switch {
