@@ -169,11 +169,9 @@ impl Database {
 
         let existing: Option<i64> = self
             .0
-            .query_row(
-                "SELECT id FROM special_words WHERE word = ?",
-                [word],
-                |r| r.get(0),
-            )
+            .query_row("SELECT id FROM special_words WHERE word = ?", [word], |r| {
+                r.get(0)
+            })
             .optional()
             .map_err(|e| e.to_string())?;
 
@@ -186,9 +184,15 @@ impl Database {
                 .map_err(|e| e.to_string())?;
             let stored: Option<String> = self
                 .0
-                .query_row("SELECT replacement FROM special_words WHERE id = ?", [id], |r| r.get(0))
+                .query_row(
+                    "SELECT replacement FROM special_words WHERE id = ?",
+                    [id],
+                    |r| r.get(0),
+                )
                 .map_err(|e| e.to_string())?;
-            Ok(json!({"id": id, "word": word, "replacement": stored, "changes": 1, "updated": true}))
+            Ok(
+                json!({"id": id, "word": word, "replacement": stored, "changes": 1, "updated": true}),
+            )
         } else {
             self.0
                 .execute(
@@ -288,10 +292,19 @@ mod tests {
         assert_eq!(list.as_array().unwrap().len(), 2);
 
         // Re-saving without a replacement keeps the stored pair
-        let kept = db.save_special_word(&json!({"word": "庫伯內提斯"})).unwrap();
+        let kept = db
+            .save_special_word(&json!({"word": "庫伯內提斯"}))
+            .unwrap();
         assert_eq!(kept["replacement"], "Kubernetes");
         let list = db.get_special_words().unwrap();
-        assert_eq!(list.as_array().unwrap().iter().find(|w| w["word"] == "庫伯內提斯").unwrap()["replacement"], "Kubernetes");
+        assert_eq!(
+            list.as_array()
+                .unwrap()
+                .iter()
+                .find(|w| w["word"] == "庫伯內提斯")
+                .unwrap()["replacement"],
+            "Kubernetes"
+        );
 
         // Delete special word by id
         let id = saved_pair["id"].as_i64().unwrap();
