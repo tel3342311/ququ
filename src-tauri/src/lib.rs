@@ -282,6 +282,7 @@ async fn desktop_command(
             state.hotkeys.set_recording(recording);
             if state.recording.swap(recording, Ordering::SeqCst) != recording {
                 state.indicator.set_recording(&app, recording)?;
+                sync_recording_tray(&app, recording);
             }
             Ok(json!({"success":true}))
         }
@@ -733,5 +734,16 @@ fn sync_mode_menu(app: &AppHandle, mode: interface::Mode) {
                 let _ = item.set_checked(checked);
             }
         }
+    }
+}
+
+fn sync_recording_tray(app: &AppHandle, recording: bool) {
+    if let Some(tray) = app.tray_by_id("ququ") {
+        let tooltip = if recording {
+            "蛐蛐 - 正在录音..."
+        } else {
+            "蛐蛐"
+        };
+        let _ = tray.set_tooltip(Some(tooltip));
     }
 }
