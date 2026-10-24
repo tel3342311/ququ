@@ -1,10 +1,10 @@
 #[path = "keyboard/mod.rs"]
 mod keyboard;
 use keyboard::machine::{Action, Machine};
-#[cfg(windows)]
-use keyboard::windows as platform;
 #[cfg(target_os = "macos")]
 use keyboard::macos as platform;
+#[cfg(windows)]
+use keyboard::windows as platform;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
@@ -192,10 +192,7 @@ impl HotkeyManager {
                                 continue;
                             }
                             if let Some(Binding::Single(vk)) = s.binding {
-                                if s.recording
-                                    && s.machine.hold
-                                    && input.key == vk
-                                    && input.pressed
+                                if s.recording && s.machine.hold && input.key == vk && input.pressed
                                 {
                                     continue;
                                 }
@@ -457,7 +454,9 @@ mod tests {
         for (name, expected_vk) in cases {
             match parse(name) {
                 Ok(Binding::Single(vk)) => assert_eq!(vk, expected_vk, "{name}"),
-                other => panic!("expected Binding::Single({expected_vk}) for {name}, got {other:?}"),
+                other => {
+                    panic!("expected Binding::Single({expected_vk}) for {name}, got {other:?}")
+                }
             }
         }
     }

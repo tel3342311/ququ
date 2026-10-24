@@ -194,7 +194,8 @@ unsafe extern "C" fn callback(
     if event.is_null() || refcon.is_null() {
         return event;
     }
-    if etype == K_CG_EVENT_TAP_DISABLED_BY_TIMEOUT || etype == K_CG_EVENT_TAP_DISABLED_BY_USER_INPUT {
+    if etype == K_CG_EVENT_TAP_DISABLED_BY_TIMEOUT || etype == K_CG_EVENT_TAP_DISABLED_BY_USER_INPUT
+    {
         let context = unsafe { &mut *(refcon as *mut Context) };
         if !context.tap.is_null() {
             CGEventTapEnable(context.tap, true);
@@ -389,14 +390,38 @@ mod tests {
 
     #[test]
     fn modifier_masks_distinguish_left_and_right() {
-        assert_eq!(modifier_mask(KEY_CONTROL_LEFT as usize), Some(NX_DEVICELCTLKEYMASK));
-        assert_eq!(modifier_mask(KEY_CONTROL_RIGHT as usize), Some(NX_DEVICERCTLKEYMASK));
-        assert_eq!(modifier_mask(KEY_SHIFT_LEFT as usize), Some(NX_DEVICELSHIFTKEYMASK));
-        assert_eq!(modifier_mask(KEY_SHIFT_RIGHT as usize), Some(NX_DEVICERSHIFTKEYMASK));
-        assert_eq!(modifier_mask(KEY_ALT_LEFT as usize), Some(NX_DEVICELALTKEYMASK));
-        assert_eq!(modifier_mask(KEY_ALT_RIGHT as usize), Some(NX_DEVICERALTKEYMASK));
-        assert_eq!(modifier_mask(KEY_COMMAND_LEFT as usize), Some(NX_DEVICELCMDKEYMASK));
-        assert_eq!(modifier_mask(KEY_COMMAND_RIGHT as usize), Some(NX_DEVICERCMDKEYMASK));
+        assert_eq!(
+            modifier_mask(KEY_CONTROL_LEFT as usize),
+            Some(NX_DEVICELCTLKEYMASK)
+        );
+        assert_eq!(
+            modifier_mask(KEY_CONTROL_RIGHT as usize),
+            Some(NX_DEVICERCTLKEYMASK)
+        );
+        assert_eq!(
+            modifier_mask(KEY_SHIFT_LEFT as usize),
+            Some(NX_DEVICELSHIFTKEYMASK)
+        );
+        assert_eq!(
+            modifier_mask(KEY_SHIFT_RIGHT as usize),
+            Some(NX_DEVICERSHIFTKEYMASK)
+        );
+        assert_eq!(
+            modifier_mask(KEY_ALT_LEFT as usize),
+            Some(NX_DEVICELALTKEYMASK)
+        );
+        assert_eq!(
+            modifier_mask(KEY_ALT_RIGHT as usize),
+            Some(NX_DEVICERALTKEYMASK)
+        );
+        assert_eq!(
+            modifier_mask(KEY_COMMAND_LEFT as usize),
+            Some(NX_DEVICELCMDKEYMASK)
+        );
+        assert_eq!(
+            modifier_mask(KEY_COMMAND_RIGHT as usize),
+            Some(NX_DEVICERCMDKEYMASK)
+        );
 
         assert_eq!(modifier_mask(0), None);
         assert_eq!(modifier_mask(0x31), None); // Space
@@ -441,19 +466,37 @@ mod tests {
         let target_vk = KEY_CONTROL_LEFT;
 
         // Clean press and release of target modifier -> Toggle
-        assert_eq!(m.key(target_vk == KEY_CONTROL_LEFT, true, false, false), None);
-        assert_eq!(m.key(target_vk == KEY_CONTROL_LEFT, false, false, false), Some(Action::Toggle));
+        assert_eq!(
+            m.key(target_vk == KEY_CONTROL_LEFT, true, false, false),
+            None
+        );
+        assert_eq!(
+            m.key(target_vk == KEY_CONTROL_LEFT, false, false, false),
+            Some(Action::Toggle)
+        );
 
         // Press target modifier, then another key (chord) -> no toggle on release
         let mut m2 = Machine::default();
-        assert_eq!(m2.key(target_vk == KEY_CONTROL_LEFT, true, false, false), None);
+        assert_eq!(
+            m2.key(target_vk == KEY_CONTROL_LEFT, true, false, false),
+            None
+        );
         assert_eq!(m2.key(false, true, false, false), None); // other key pressed
-        assert_eq!(m2.key(target_vk == KEY_CONTROL_LEFT, false, false, false), None);
+        assert_eq!(
+            m2.key(target_vk == KEY_CONTROL_LEFT, false, false, false),
+            None
+        );
 
         // Right control does not trigger left control hotkey
         let mut m3 = Machine::default();
-        assert_eq!(m3.key(KEY_CONTROL_RIGHT == KEY_CONTROL_LEFT, true, false, false), None);
-        assert_eq!(m3.key(KEY_CONTROL_RIGHT == KEY_CONTROL_LEFT, false, false, false), None);
+        assert_eq!(
+            m3.key(KEY_CONTROL_RIGHT == KEY_CONTROL_LEFT, true, false, false),
+            None
+        );
+        assert_eq!(
+            m3.key(KEY_CONTROL_RIGHT == KEY_CONTROL_LEFT, false, false, false),
+            None
+        );
     }
 
     #[test]
@@ -464,14 +507,26 @@ mod tests {
         let target_vk = KEY_ALT_RIGHT;
 
         // Clean hold and release -> Start and Stop
-        assert_eq!(m.key(target_vk == KEY_ALT_RIGHT, true, false, false), Some(Action::Start));
-        assert_eq!(m.key(target_vk == KEY_ALT_RIGHT, false, false, false), Some(Action::Stop));
+        assert_eq!(
+            m.key(target_vk == KEY_ALT_RIGHT, true, false, false),
+            Some(Action::Start)
+        );
+        assert_eq!(
+            m.key(target_vk == KEY_ALT_RIGHT, false, false, false),
+            Some(Action::Stop)
+        );
 
         // Hold and chord -> Cancel
         let mut m2 = Machine::default();
         m2.hold = true;
-        assert_eq!(m2.key(target_vk == KEY_ALT_RIGHT, true, false, false), Some(Action::Start));
+        assert_eq!(
+            m2.key(target_vk == KEY_ALT_RIGHT, true, false, false),
+            Some(Action::Start)
+        );
         assert_eq!(m2.key(false, true, false, false), Some(Action::Cancel));
-        assert_eq!(m2.key(target_vk == KEY_ALT_RIGHT, false, false, false), None);
+        assert_eq!(
+            m2.key(target_vk == KEY_ALT_RIGHT, false, false, false),
+            None
+        );
     }
 }

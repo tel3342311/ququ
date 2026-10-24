@@ -181,7 +181,7 @@ Adjust the path for Intel builds. Ad-hoc signing is a local testing option, not 
 1. Open the DMG and drag **蛐蛐.app** into **Applications**.
 2. Launch the installed copy, allow microphone access and download the selected model.
 3. Grant Accessibility permission if required for simulated paste. Test typing into a separate editor.
-4. Configure a **combination shortcut**. Standalone left/right modifier hotkeys are currently implemented only on Windows.
+4. Configure a **combination shortcut**. Standalone left/right modifier hotkeys work on Windows and macOS; on macOS they require Accessibility permission, requested when such a hotkey is first saved.
 5. Verify both interfaces, tray/menu-bar behavior, audio decoding, native inference and clipboard/paste on the target Mac.
 
 Compact samples the mouse position when recording starts and stays fixed there until the recording ends. Release packaging alone does not establish feature parity with the tested Windows build.
