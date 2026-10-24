@@ -174,7 +174,7 @@ impl Indicator {
             .set_ignore_cursor_events(!classic)
             .map_err(|e| e.to_string())?;
         window
-            .set_always_on_top(!classic)
+            .set_always_on_top(true)
             .map_err(|e| e.to_string())?;
         window
             .set_skip_taskbar(!classic)
@@ -182,6 +182,8 @@ impl Indicator {
         if classic {
             if let Some(position) = *self.classic_position.lock().map_err(|e| e.to_string())? {
                 window.set_position(position).map_err(|e| e.to_string())?;
+            } else {
+                let _ = window.center();
             }
             window
                 .set_size(tauri::LogicalSize::new(400.0, 500.0))

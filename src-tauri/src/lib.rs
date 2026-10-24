@@ -668,8 +668,11 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             }
             _ => {}
         });
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
+    let icon = tauri::image::Image::from_bytes(include_bytes!("../../assets/icon.png"))
+        .ok()
+        .or_else(|| app.default_window_icon().cloned());
+    if let Some(icon) = icon {
+        tray = tray.icon(icon);
     }
     tray.build(app)?;
     Ok(())

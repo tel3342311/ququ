@@ -263,23 +263,50 @@ uv sync  # 会自动下载 Python 3.11
 ## 📄 许可证
 
 本项目采用 [Apache License 2.0](LICENSE) 许可证。
-# Rust / Tauri 迁移
+# Rust / Tauri 迁移与 Release 打包
 
-原生版本保留 React，使用 Rust 桌面服务与 SenseVoice / Paraformer 本地推理。启动：`npm run dev:rust`。开发、模型下载和验证说明见 [Rust desktop development](docs/rust-desktop.md)。原有 Electron 命令暂时保留。
+原生版本保留 React，使用 Rust 桌面服务与 SenseVoice / Paraformer 本地推理。启动开发模式：`npm run dev:rust`。开发、模型下载和验证说明见 [Rust desktop development](docs/rust-desktop.md)。原有 Electron 命令暂时保留。
 
-## Windows / macOS 安装包部署
+## Windows / macOS 独立执行档与安装包构建
 
 完整步骤见 [Deployment README — Windows & macOS](docs/DEPLOYMENT.md)，包括构建环境、安装包路径、签名、公证、麦克风权限、模型下载和升级。
 
+### 1. Windows 本地编译与打包
+
+在 Windows (x64) 开发机上执行：
+
 ```powershell
-# 在 Windows 上生成 Rust/Tauri NSIS 安装包
+# 编译独立 Release 执行档 (.exe) 并生成 NSIS 安装包
 npm run build:rust
 ```
 
-```sh
-# 在 Mac 上生成 Apple Silicon 的 .app 和 .dmg
+生成产物：
+- **独立可执行程序**：`src-tauri/target/release/ququ-desktop.exe`（单文件运行，不依赖 Python、Node.js 或 Electron）
+- **NSIS 安装包**：`src-tauri/target/release/bundle/nsis/蛐蛐_1.0.0_x64-setup.exe`
+
+### 2. macOS 本地编译与打包
+
+在 Mac 开发机上执行（需安装 Xcode Command Line Tools 与 Rust target）：
+
+```bash
+# 安装前端依赖
+pnpm install --frozen-lockfile --ignore-scripts
+
+# 1. Apple Silicon 版（M1/M2/M3/M4 系列，推荐）
 npm run build:rust -- --config src-tauri/tauri.macos.conf.json --target aarch64-apple-darwin
+
+# 2. Intel Mac 版
+npm run build:rust -- --config src-tauri/tauri.macos.conf.json --target x86_64-apple-darwin
 ```
 
-Windows 原生应用已验证；macOS 的构建配置已提供，仍需在真实 Mac 上验证打包和运行。以上命令用于 Rust 版本，原有 `build:win` / `build:mac` 仍属于 Electron/Python 版本。
+生成产物：
+- `src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg` 与 `*.app`
+- `src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg` 与 `*.app`
 
+### 3. GitHub Actions 自动云端打包
+
+项目已配置自动化工作流 [`.github/workflows/release.yml`](.github/workflows/release.yml)：
+- 推送版本标签（如 `git tag v1.0.0 && git push origin v1.0.0`）或在 GitHub Actions 页面手动运行 `Release Build` 工作流。
+- 自动化任务将分别在 `windows-latest` 和 `macos-latest` 虚拟机中编译并打包，产出 Windows x64 与 macOS（Apple Silicon 及 Intel）的全套安装包及 Artifacts。
+
+> **注**：以上构建命令专用于 Rust/Tauri 原生版本，原有 `build:win` / `build:mac` 仍属于旧版 Electron/Python 架构。

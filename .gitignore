@@ -157,3 +157,4 @@ python
 # Rust build output
 target/
 src-tauri/gen/
+.lavish/
