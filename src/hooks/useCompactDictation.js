@@ -65,5 +65,20 @@ export function useCompactDictation() {
     const dispose=api.onHotkeyTriggered((_,data)=>dispatchRef.current(data?.action||'toggle'));
     return ()=>{dispose();intentRef.current++;session.current.cancel();};
   },[api]);
-  return {phase,isRecording:phase==='recording',result,error,model,dispatch:action=>dispatchRef.current(action)};
+  return {
+    phase,
+    isRecording: phase === 'recording',
+    result,
+    setResult,
+    updateResultText: updater => {
+      setResult(prev => {
+        if (!prev) return prev;
+        const newText = typeof updater === 'function' ? updater(prev.text) : updater;
+        return { ...prev, text: newText };
+      });
+    },
+    error,
+    model,
+    dispatch: action => dispatchRef.current(action),
+  };
 }
