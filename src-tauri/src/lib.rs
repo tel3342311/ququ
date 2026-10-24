@@ -608,7 +608,7 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         None::<&str>,
     )?;
     let show = MenuItem::with_id(app, "show", "开始/停止听写", true, None::<&str>)?;
-    let cancel = MenuItem::with_id(app, "cancel", "取消听写", false, None::<&str>)?;
+    let cancel = MenuItem::with_id(app, "cancel", "取消听写", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "设置", true, None::<&str>)?;
     let history = MenuItem::with_id(app, "history", "历史记录", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
@@ -745,12 +745,5 @@ fn sync_recording_tray(app: &AppHandle, recording: bool) {
             "蛐蛐"
         };
         let _ = tray.set_tooltip(Some(tooltip));
-    }
-    if let Some(menu) = app.try_state::<tauri::menu::Menu<tauri::Wry>>() {
-        if let Some(item) = menu.get("cancel") {
-            if let Some(item) = item.as_menuitem() {
-                let _ = item.set_enabled(recording);
-            }
-        }
     }
 }
