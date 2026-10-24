@@ -3,12 +3,14 @@ import {Mic,Square,History,Settings,Minimize2,Copy,X,Loader2} from 'lucide-react
 import {useCompactDictation} from '../hooks/useCompactDictation';
 import {useInterfaceMode} from '../hooks/useInterfaceMode';
 import CompactDictation from './CompactDictation';
+import SpecialWordBubble from './SpecialWordBubble';
 
 export default function NativeDictation() {
   // Keep this controller mounted when changing only the visible interface.
   const dictation=useCompactDictation();
   const {mode,error,saving,changeMode}=useInterfaceMode();
   const [notice,setNotice]=React.useState('');
+  const sentenceRef=React.useRef(null);
   const api=window.electronAPI;
   const run=async operation=>{try{await operation();}catch(reason){setNotice(reason.message||String(reason));}};
   if(!mode)return <div className="p-4 text-foreground" role="status">{error||'正在加载界面…'}</div>;
@@ -35,10 +37,16 @@ export default function NativeDictation() {
       {busy&&<button type="button" className="text-sm mt-3 underline text-muted-foreground" onClick={()=>dictation.dispatch('cancel')}>取消听写</button>}
       {!model.isReady&&<button type="button" className="text-sm mt-3 underline" onClick={()=>run(()=>api.openSettingsWindow())}>打开模型设置</button>}
     </section>
-    {result&&<section className="rounded-lg border bg-secondary/70 p-4 chinese-content" aria-label="最近一次听写">
-      <div className="flex justify-between items-center gap-2"><h2 className="text-xs text-muted-foreground">最近一次听写</h2><button type="button" aria-label="复制识别文字" className="classic-tool" onClick={()=>run(async()=>{await api.copyText(result.text);setNotice('文字已复制。');})}><Copy size={16}/></button></div>
-      <p className="whitespace-pre-wrap break-words mt-2">{result.text}</p>
-      {result.rawText&&result.rawText!==result.text&&<details className="mt-3 text-sm text-muted-foreground"><summary>原始识别文字</summary><p className="whitespace-pre-wrap mt-2">{result.rawText}</p></details>}
+    {result&&<section className="rounded-lg border bg-secondary/70 p-4 chinese-content relative" aria-label="最近一次聽寫">
+      <div className="flex justify-between items-center gap-2"><h2 className="text-xs text-muted-foreground">最近一次聽寫</h2><button type="button" aria-label="複製辨識文字" className="classic-tool" onClick={()=>run(async()=>{await api.copyText(result.text);setNotice('文字已複製。');})}><Copy size={16}/></button></div>
+      <p ref={sentenceRef} className="whitespace-pre-wrap break-words mt-2 select-text">{result.text}</p>
+      {result.rawText&&result.rawText!==result.text&&<details className="mt-3 text-sm text-muted-foreground"><summary>原始辨識文字</summary><p className="whitespace-pre-wrap mt-2">{result.rawText}</p></details>}
+      <SpecialWordBubble
+        targetRef={sentenceRef}
+        onSentenceUpdate={(word, replacement) => {
+          dictation.updateResultText(prev => (prev ? prev.replaceAll(word, replacement) : prev));
+        }}
+      />
     </section>}
     {(error||dictation.error||notice)&&<p className="mt-4 text-sm break-words text-muted-foreground" role="alert">{error||dictation.error||notice}</p>}
   </main>;

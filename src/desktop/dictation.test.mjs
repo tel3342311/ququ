@@ -65,3 +65,17 @@ test('save and clipboard failures report error without duplicating side effects'
     assert.equal(metrics.outcome,3);
   }
 });
+test('applies special words replacement pairs to recognized and pasted text',async()=>{
+  const {api,calls}=harness({
+    transcribeAudio:async()=>({success:true,text:'我昨天跟王小明討論了庫伯內提斯部署。',raw_text:'我昨天跟王小明討論了庫伯內提斯部署。'}),
+    getSpecialWords:async()=>[
+      {word:'王小明'},
+      {word:'庫伯內提斯',replacement:'Kubernetes'},
+    ],
+    getSetting:async()=>false, // no AI optimization
+  });
+  const result=await finishDictation(api,new Uint8Array([1,2]));
+  assert.equal(result.text,'我昨天跟王小明討論了Kubernetes部署。');
+  assert.equal(calls.find(([name])=>name==='save')[1].text,'我昨天跟王小明討論了Kubernetes部署。');
+  assert.deepEqual(calls.find(([name])=>name==='paste'),['paste','我昨天跟王小明討論了Kubernetes部署。']);
+});

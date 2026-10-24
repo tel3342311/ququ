@@ -1,4 +1,6 @@
 import { createPerformanceReport } from './performance.mjs';
+import { applySpecialWords } from './special-words.mjs';
+
 export async function finishDictation(api,audio,{isCurrent=()=>true,onPhase=()=>{},onMetrics,startedAt,now,report:sharedReport}={}) {
   const report=sharedReport||createPerformanceReport({onMetrics,startedAt,now});
   let outcome=3;
@@ -10,14 +12,25 @@ export async function finishDictation(api,audio,{isCurrent=()=>true,onPhase=()=>
   if(!result?.success)throw new Error(result?.error||'语音识别失败');
   const recognized=result.text?.trim()||'';
   if(!recognized){outcome=2;return {empty:true};}
-  let finalText=recognized,processedText=null;
+  let specialWords = [];
+  try {
+    if (typeof api.getSpecialWords === 'function') {
+      const stored = await api.getSpecialWords();
+      if (Array.isArray(stored)) specialWords = stored;
+    }
+  } catch { /* proceed without pairs if fetching fails */ }
+  if(!isCurrent())return cancelled();
+  let finalText=applySpecialWords(recognized, specialWords),processedText=null;
   const useAI=await api.getSetting('enable_ai_optimization',true);
   if(!isCurrent())return cancelled();
   if(useAI) {
     onPhase('optimizing');
     try {
-      const optimized=await report.measure('aiMs',()=>api.processText(recognized,'optimize'));
-      if(optimized?.success&&optimized.text?.trim()){processedText=optimized.text.trim();finalText=processedText;}
+      const optimized=await report.measure('aiMs',()=>api.processText(finalText,'optimize'));
+      if(optimized?.success&&optimized.text?.trim()){
+        processedText=optimized.text.trim();
+        finalText=applySpecialWords(processedText, specialWords);
+      }
     } catch { /* Local recognition remains usable when the optional AI is offline. */ }
   }
   if(!isCurrent())return cancelled();

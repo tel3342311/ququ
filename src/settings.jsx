@@ -9,6 +9,7 @@ import PermissionCard from "./components/ui/permission-card";
 import NativeSpeechSettings from './components/NativeSpeechSettings';
 import HotkeySettings from './components/HotkeySettings';
 import InterfaceSettings from './components/InterfaceSettings';
+import SpecialWordsSettings from './components/SpecialWordsSettings';
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState({
@@ -215,6 +216,7 @@ const SettingsPage = () => {
       {/* 主要内容 - 可滚动 */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-2xl mx-auto p-6 pb-8">
+          <div className="mb-6"><SpecialWordsSettings /></div>
           <div className="mb-6"><NativeSpeechSettings /></div>
           <div className="mb-6"><HotkeySettings /></div>
           {window.electronAPI?.runtime==='tauri'&&<div className="mb-6"><InterfaceSettings /></div>}

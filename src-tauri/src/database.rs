@@ -31,7 +31,9 @@ impl Database {
           file_size INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
           CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY,value TEXT,updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
-          CREATE INDEX IF NOT EXISTS idx_transcriptions_created_at ON transcriptions(created_at DESC);")
+          CREATE TABLE IF NOT EXISTS special_words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT NOT NULL, replacement TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+          CREATE INDEX IF NOT EXISTS idx_transcriptions_created_at ON transcriptions(created_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_special_words_id ON special_words(id DESC);")
           .map_err(|e| e.to_string())?;
         transaction.commit().map_err(|e| e.to_string())?;
         Ok(Self(connection))
@@ -121,6 +123,92 @@ impl Database {
     pub fn clear(&self) -> Result<Value, String> {
         self.execute("DELETE FROM transcriptions", [])
     }
+    pub fn update_transcription_text(&self, id: i64, text: &str) -> Result<Value, String> {
+        let count = self
+            .0
+            .execute(
+                "UPDATE transcriptions SET text=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                params![text, id],
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(json!({"changes": count}))
+    }
+    pub fn get_special_words(&self) -> Result<Value, String> {
+        let mut statement = self
+            .0
+            .prepare("SELECT id, word, replacement, created_at FROM special_words ORDER BY id DESC")
+            .map_err(|e| e.to_string())?;
+        let rows = statement
+            .query_map([], |r| {
+                Ok(json!({
+                    "id": r.get::<_, i64>(0)?,
+                    "word": r.get::<_, String>(1)?,
+                    "replacement": r.get::<_, Option<String>>(2)?,
+                    "created_at": r.get::<_, String>(3)?,
+                }))
+            })
+            .map_err(|e| e.to_string())?;
+        Ok(Value::Array(
+            rows.collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?,
+        ))
+    }
+    pub fn save_special_word(&self, data: &Value) -> Result<Value, String> {
+        use rusqlite::OptionalExtension;
+        let word = data
+            .get("word")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| "詞彙不能為空".to_string())?;
+        let replacement = data
+            .get("replacement")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
+
+        let existing: Option<i64> = self
+            .0
+            .query_row(
+                "SELECT id FROM special_words WHERE word = ?",
+                [word],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+
+        if let Some(id) = existing {
+            self.0
+                .execute(
+                    "UPDATE special_words SET replacement = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    params![replacement, id],
+                )
+                .map_err(|e| e.to_string())?;
+            Ok(json!({"id": id, "word": word, "replacement": replacement, "changes": 1, "updated": true}))
+        } else {
+            self.0
+                .execute(
+                    "INSERT INTO special_words (word, replacement) VALUES (?, ?)",
+                    params![word, replacement],
+                )
+                .map_err(|e| e.to_string())?;
+            let id = self.0.last_insert_rowid();
+            Ok(json!({"id": id, "word": word, "replacement": replacement, "changes": 1}))
+        }
+    }
+    pub fn delete_special_word(&self, id: i64) -> Result<Value, String> {
+        self.execute("DELETE FROM special_words WHERE id=?", [id])
+    }
+    pub fn delete_special_word_by_word(&self, word: &str) -> Result<Value, String> {
+        let count = self
+            .0
+            .execute("DELETE FROM special_words WHERE word=?", [word])
+            .map_err(|e| e.to_string())?;
+        Ok(json!({"changes": count}))
+    }
+    pub fn clear_special_words(&self) -> Result<Value, String> {
+        self.execute("DELETE FROM special_words", [])
+    }
 }
 
 #[cfg(test)]
@@ -157,5 +245,66 @@ mod tests {
         db.save(&json!({"text":"first"})).unwrap();
         db.save(&json!({"text":"second"})).unwrap();
         assert_eq!(db.list(1, 1).unwrap()[0]["text"], "first");
+    }
+    #[test]
+    fn special_words_storage_and_replacement_pairs() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("test_words.db")).unwrap();
+
+        // Rejects blank word
+        assert!(db.save_special_word(&json!({"word": "   "})).is_err());
+
+        // Saves plain word
+        let saved_plain = db.save_special_word(&json!({"word": "王小明"})).unwrap();
+        assert_eq!(saved_plain["word"], "王小明");
+        assert!(saved_plain["replacement"].is_null());
+
+        // Saves pair (word -> replacement)
+        let saved_pair = db
+            .save_special_word(&json!({"word": "庫伯內提斯", "replacement": "Kubernetes"}))
+            .unwrap();
+        assert_eq!(saved_pair["word"], "庫伯內提斯");
+        assert_eq!(saved_pair["replacement"], "Kubernetes");
+
+        // List words
+        let list = db.get_special_words().unwrap();
+        let arr = list.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0]["word"], "庫伯內提斯");
+        assert_eq!(arr[0]["replacement"], "Kubernetes");
+        assert_eq!(arr[1]["word"], "王小明");
+        assert!(arr[1]["replacement"].is_null());
+
+        // Updating existing word
+        let updated = db
+            .save_special_word(&json!({"word": "王小明", "replacement": "Xiao-Ming Wang"}))
+            .unwrap();
+        assert_eq!(updated["updated"], true);
+        let list = db.get_special_words().unwrap();
+        assert_eq!(list.as_array().unwrap().len(), 2);
+
+        // Delete special word by id
+        let id = saved_pair["id"].as_i64().unwrap();
+        db.delete_special_word(id).unwrap();
+        let list_after = db.get_special_words().unwrap();
+        assert_eq!(list_after.as_array().unwrap().len(), 1);
+        assert_eq!(list_after.as_array().unwrap()[0]["word"], "王小明");
+
+        // Delete by word string
+        db.delete_special_word_by_word("王小明").unwrap();
+        assert_eq!(db.get_special_words().unwrap().as_array().unwrap().len(), 0);
+    }
+    #[test]
+    fn update_transcription_text_modifies_record() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("test_tx.db")).unwrap();
+        let saved = db
+            .save(&json!({"text": "庫伯內提斯在邊緣裝置上的部署。"}))
+            .unwrap();
+        let id = saved["lastInsertRowid"].as_i64().unwrap();
+        db.update_transcription_text(id, "Kubernetes在邊緣裝置上的部署。")
+            .unwrap();
+        let list = db.list(1, 0).unwrap();
+        assert_eq!(list[0]["text"], "Kubernetes在邊緣裝置上的部署。");
     }
 }
