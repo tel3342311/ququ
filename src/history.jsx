@@ -272,26 +272,16 @@ const HistoryContent = ({ onCopy }) => {
           const rawId = targetElement?.getAttribute('data-history-id');
           const id = rawId ? Number(rawId) : null;
           if (id) {
-            setFilteredTranscriptions(prev =>
-              prev.map(item => {
-                if (item.id === id) {
-                  const newText = item.text.replaceAll(word, replacement);
-                  if (window.electronAPI?.updateTranscription) {
-                    window.electronAPI.updateTranscription(id, newText).catch(console.error);
-                  }
-                  return { ...item, text: newText };
-                }
-                return item;
-              })
-            );
-            setTranscriptions(prev =>
-              prev.map(item => {
-                if (item.id === id) {
-                  return { ...item, text: item.text.replaceAll(word, replacement) };
-                }
-                return item;
-              })
-            );
+            const target = transcriptions.find(item => item.id === id);
+            if (!target) return;
+            const newText = target.text.replaceAll(word, replacement);
+            if (newText === target.text) return;
+            const applyText = list => list.map(item => (item.id === id ? { ...item, text: newText } : item));
+            setFilteredTranscriptions(applyText);
+            setTranscriptions(applyText);
+            if (window.electronAPI?.updateTranscription) {
+              window.electronAPI.updateTranscription(id, newText).catch(console.error);
+            }
           }
         }}
       />

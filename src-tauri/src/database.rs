@@ -180,11 +180,15 @@ impl Database {
         if let Some(id) = existing {
             self.0
                 .execute(
-                    "UPDATE special_words SET replacement = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    "UPDATE special_words SET replacement = COALESCE(?, replacement), created_at = CURRENT_TIMESTAMP WHERE id = ?",
                     params![replacement, id],
                 )
                 .map_err(|e| e.to_string())?;
-            Ok(json!({"id": id, "word": word, "replacement": replacement, "changes": 1, "updated": true}))
+            let stored: Option<String> = self
+                .0
+                .query_row("SELECT replacement FROM special_words WHERE id = ?", [id], |r| r.get(0))
+                .map_err(|e| e.to_string())?;
+            Ok(json!({"id": id, "word": word, "replacement": stored, "changes": 1, "updated": true}))
         } else {
             self.0
                 .execute(
@@ -282,6 +286,12 @@ mod tests {
         assert_eq!(updated["updated"], true);
         let list = db.get_special_words().unwrap();
         assert_eq!(list.as_array().unwrap().len(), 2);
+
+        // Re-saving without a replacement keeps the stored pair
+        let kept = db.save_special_word(&json!({"word": "庫伯內提斯"})).unwrap();
+        assert_eq!(kept["replacement"], "Kubernetes");
+        let list = db.get_special_words().unwrap();
+        assert_eq!(list.as_array().unwrap().iter().find(|w| w["word"] == "庫伯內提斯").unwrap()["replacement"], "Kubernetes");
 
         // Delete special word by id
         let id = saved_pair["id"].as_i64().unwrap();
