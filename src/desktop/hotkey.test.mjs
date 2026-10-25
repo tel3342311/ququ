@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHotkeyCapture } from './hotkey.mjs';
+import {
+  CUSTOM_HOTKEY_PRESET,
+  createHotkeyCapture,
+  customPresetLabel,
+  hotkeyPresetsForPlatform,
+  keyForPresetValue,
+  normalizeHotkeyPlatform,
+  presetValueForKey,
+} from './hotkey.mjs';
 import { createDesktopAPI } from './bridge.mjs';
 
 test('captures physical single modifiers on release, without capturing repeats', () => {
@@ -37,4 +45,88 @@ test('hotkey configuration and dictation errors use explicit native commands', a
   const events = createDesktopAPI({invoke(){}, listen:async (name, callback) => { received=name; callback({payload:'failed'}); return () => {}; }});
   events.onDictationError((_, data) => assert.equal(data, 'failed'));
   assert.equal(received, 'dictation-error');
+});
+
+test('derives platform-specific hotkey presets with Traditional Chinese labels and ControlRight first', () => {
+  assert.equal(normalizeHotkeyPlatform('macos'), 'macos');
+  assert.equal(normalizeHotkeyPlatform('darwin'), 'macos');
+  assert.equal(normalizeHotkeyPlatform('MacIntel'), 'macos');
+  assert.equal(normalizeHotkeyPlatform('windows'), 'windows');
+  assert.equal(normalizeHotkeyPlatform('win32'), 'windows');
+  assert.equal(normalizeHotkeyPlatform('Win32'), 'windows');
+
+  const macPresets = hotkeyPresetsForPlatform('macos');
+  assert.equal(macPresets[0].key, 'ControlRight');
+  assert.deepEqual(macPresets, [
+    { key: 'ControlRight', label: '右 Control' },
+    { key: 'AltRight', label: '右 Option' },
+    { key: 'MetaRight', label: '右 Command' },
+    { key: 'F5', label: 'F5' },
+    { key: 'F6', label: 'F6' },
+    { key: 'F7', label: 'F7' },
+    { key: 'F8', label: 'F8' },
+    { key: 'Control+Shift+Space', label: 'Control + Shift + 空白鍵' },
+    { key: 'Alt+Space', label: 'Option + 空白鍵' },
+  ]);
+
+  const winPresets = hotkeyPresetsForPlatform('windows');
+  assert.equal(winPresets[0].key, 'ControlRight');
+  assert.deepEqual(winPresets, [
+    { key: 'ControlRight', label: '右 Ctrl' },
+    { key: 'AltRight', label: '右 Alt' },
+    { key: 'F8', label: 'F8' },
+    { key: 'Control+Shift+Space', label: 'Ctrl + Shift + 空白鍵' },
+    { key: 'Alt+Space', label: 'Alt + 空白鍵' },
+  ]);
+});
+
+test('every preset key matches the canonical output of createHotkeyCapture', () => {
+  const captureEvents = {
+    ControlRight: [{ type: 'keydown', event: { code: 'ControlRight', ctrlKey: true } }, { type: 'keyup', event: { code: 'ControlRight' } }],
+    AltRight: [{ type: 'keydown', event: { code: 'AltRight', altKey: true } }, { type: 'keyup', event: { code: 'AltRight' } }],
+    MetaRight: [{ type: 'keydown', event: { code: 'MetaRight', metaKey: true } }, { type: 'keyup', event: { code: 'MetaRight' } }],
+    F5: [{ type: 'keydown', event: { code: 'F5' } }],
+    F6: [{ type: 'keydown', event: { code: 'F6' } }],
+    F7: [{ type: 'keydown', event: { code: 'F7' } }],
+    F8: [{ type: 'keydown', event: { code: 'F8' } }],
+    'Control+Shift+Space': [{ type: 'keydown', event: { code: 'Space', ctrlKey: true, shiftKey: true } }],
+    'Alt+Space': [{ type: 'keydown', event: { code: 'Space', altKey: true } }],
+  };
+
+  for (const platform of ['macos', 'windows']) {
+    for (const preset of hotkeyPresetsForPlatform(platform)) {
+      const sequence = captureEvents[preset.key];
+      assert.ok(sequence, `missing capture sequence for preset ${preset.key}`);
+      const capture = createHotkeyCapture();
+      let captured = null;
+      for (const step of sequence) {
+        captured = capture[step.type](step.event) ?? captured;
+      }
+      assert.equal(captured, preset.key, `capture output must match preset key ${preset.key} on ${platform}`);
+    }
+  }
+});
+
+test('maps between preset selection values and config.key including custom captured keys', () => {
+  for (const preset of hotkeyPresetsForPlatform('macos')) {
+    assert.equal(presetValueForKey(preset.key, 'macos'), preset.key);
+    assert.equal(keyForPresetValue(preset.key, 'ControlLeft', 'macos'), preset.key);
+    assert.equal(customPresetLabel(preset.key, 'macos'), '自訂');
+  }
+
+  for (const preset of hotkeyPresetsForPlatform('windows')) {
+    assert.equal(presetValueForKey(preset.key, 'windows'), preset.key);
+    assert.equal(keyForPresetValue(preset.key, 'ControlLeft', 'windows'), preset.key);
+    assert.equal(customPresetLabel(preset.key, 'windows'), '自訂');
+  }
+
+  // Captured keys not in the preset list map to CUSTOM_HOTKEY_PRESET and display in customPresetLabel.
+  assert.equal(presetValueForKey('ControlLeft', 'macos'), CUSTOM_HOTKEY_PRESET);
+  assert.equal(customPresetLabel('ControlLeft', 'macos'), '自訂（ControlLeft）');
+  assert.equal(keyForPresetValue(CUSTOM_HOTKEY_PRESET, 'ControlLeft', 'macos'), 'ControlLeft');
+
+  // Platform-specific presets that are not in another platform's list fall back to custom on that platform.
+  assert.equal(presetValueForKey('MetaRight', 'windows'), CUSTOM_HOTKEY_PRESET);
+  assert.equal(customPresetLabel('MetaRight', 'windows'), '自訂（MetaRight）');
+  assert.equal(keyForPresetValue('MetaRight', 'ControlLeft', 'windows'), 'ControlLeft');
 });

@@ -396,7 +396,16 @@ mod tests {
         for key in ["A", "KeyA", "Space", "Enter", "Digit1"] {
             assert!(parse(key).is_err(), "{key}");
         }
-        for key in ["F2", "f2", "Control+Shift+Space"] {
+        for key in [
+            "F2",
+            "f2",
+            "F5",
+            "F6",
+            "F7",
+            "F8",
+            "Control+Shift+Space",
+            "Alt+Space",
+        ] {
             assert!(parse(key).is_ok(), "{key}");
         }
     }
