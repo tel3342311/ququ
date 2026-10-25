@@ -5,6 +5,32 @@ use std::time::Duration;
 #[cfg(target_os = "macos")]
 const MACOS_PASTE_KEY: Key = Key::Other(9); // kVK_ANSI_V (0x09)
 
+#[cfg(target_os = "macos")]
+static ACCESSIBILITY_PROMPTED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(any(target_os = "macos", test))]
+const ACCESSIBILITY_ERROR: &str =
+    "Accessibility permission is required to paste into other applications; text copied instead of pasted. Grant QuQu access in System Settings > Privacy & Security > Accessibility.";
+
+/// macOS silently drops synthesized key events (and enigo refuses to start) until the
+/// process is trusted for Accessibility. The system prompt is what lists the app in that
+/// pane, so request it once per run, then keep reporting the missing permission.
+#[cfg(any(target_os = "macos", test))]
+fn require_accessibility(
+    trusted: bool,
+    prompted: &std::sync::atomic::AtomicBool,
+    prompt: impl FnOnce(),
+) -> Result<(), String> {
+    if trusted {
+        return Ok(());
+    }
+    if !prompted.swap(true, std::sync::atomic::Ordering::AcqRel) {
+        prompt();
+    }
+    Err(ACCESSIBILITY_ERROR.into())
+}
+
 pub fn copy(text: &str) -> Result<(), String> {
     arboard::Clipboard::new()
         .map_err(|e| e.to_string())?
@@ -23,6 +49,13 @@ pub fn paste(text: &str, guard: impl Fn() -> bool, _target: isize) -> Result<(),
     copy(text)?;
     // Allow the target window a brief moment to settle focus after overlay/indicator hides.
     sleep(Duration::from_millis(30));
+
+    #[cfg(target_os = "macos")]
+    require_accessibility(
+        crate::shortcuts::keyboard::macos::is_process_trusted(),
+        &ACCESSIBILITY_PROMPTED,
+        crate::shortcuts::keyboard::macos::prompt_accessibility,
+    )?;
 
     if !guard() {
         return Err("Focus changed or dictation cancelled; text copied instead of pasted".into());
@@ -119,6 +152,28 @@ mod tests {
                 .push((Key::Other(u32::from(keycode)), direction));
             Ok(())
         }
+    }
+
+    #[test]
+    fn missing_accessibility_prompts_once_and_fails_with_actionable_error() {
+        let prompted = std::sync::atomic::AtomicBool::new(false);
+        let prompts = std::cell::Cell::new(0);
+        for _ in 0..3 {
+            let err = require_accessibility(false, &prompted, || prompts.set(prompts.get() + 1))
+                .expect_err("untrusted process cannot paste");
+            assert!(err.contains("Accessibility"));
+        }
+        assert_eq!(
+            prompts.get(),
+            1,
+            "system prompt must not reappear on every dictation"
+        );
+    }
+
+    #[test]
+    fn granted_accessibility_never_prompts() {
+        let prompted = std::sync::atomic::AtomicBool::new(false);
+        require_accessibility(true, &prompted, || panic!("must not prompt")).unwrap();
     }
 
     #[test]
