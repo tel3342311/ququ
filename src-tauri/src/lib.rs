@@ -280,6 +280,18 @@ async fn desktop_command(
             .map(|c| c.key)
             .unwrap_or_else(|| "CommandOrControl+Shift+Space".into()))),
         "get-hotkey-config" => value(state.hotkeys.current()?.unwrap_or_else(default_hotkey)),
+        "get-hotkey-status" => {
+            let mut status = state.hotkeys.status();
+            status["desired"] = state.database()?.get("dictation_hotkey", Value::Null)?;
+            Ok(status)
+        }
+        "open-system-permissions" => {
+            if window.label() != "settings" {
+                return Err("請從設定視窗開啟系統權限".into());
+            }
+            shortcuts::open_permission_settings(text(&args, 0)?)?;
+            Ok(json!({"success":true}))
+        }
         "set-hotkey-config" | "register-hotkey" => {
             if state.recording.load(Ordering::SeqCst) {
                 return Err("Stop recording before changing the hotkey".into());
@@ -599,10 +611,17 @@ pub fn run() {
                     mode: shortcuts::HotkeyMode::Toggle,
                 }
             });
+            // A saved hotkey that cannot start (typically a missing macOS permission) falls
+            // back to the default so dictation still works, but the user must be told.
+            let mut hotkey_notice = None;
             if let Err(error) = hotkeys.configure(config) {
                 let _ = logging::write(&data_dir.join("logs"), "error", &error);
                 let _ = hotkeys.configure(default_hotkey());
+                hotkey_notice = Some(format!(
+                    "您儲存的快速鍵目前無法使用，已暫時改用預設快速鍵。{error}"
+                ));
             }
+            hotkeys.set_notice(hotkey_notice.clone());
             indicator::Indicator::prepare(app.handle())?;
             app.manage(AppState {
                 db: Mutex::new(db),
@@ -623,6 +642,10 @@ pub fn run() {
             let state = app.state::<AppState>();
             state.indicator.track_external(app.handle());
             state.indicator.apply_mode(app.handle(), mode)?;
+            if hotkey_notice.is_some() {
+                // Surface the problem where the fix (permission buttons) lives.
+                let _ = windows::open(app.handle(), "settings");
+            }
             Ok(())
         })
         .on_window_event(|window, event| {

@@ -44,6 +44,7 @@ pub struct HotkeyManager {
     app: AppHandle,
     state: Arc<Mutex<State>>,
     operation: Mutex<()>,
+    notice: Mutex<Option<String>>,
     #[cfg(any(windows, target_os = "macos"))]
     runtime: Mutex<Option<(platform::Hook, std::thread::JoinHandle<()>)>>,
 }
@@ -133,6 +134,44 @@ fn parse(key: &str) -> Result<Binding, String> {
     }
     Ok(Binding::Chord(shortcut))
 }
+/// Privacy permissions a system-wide hotkey needs on this platform.
+fn permissions() -> serde_json::Value {
+    #[cfg(target_os = "macos")]
+    {
+        let access = keyboard::macos::access();
+        serde_json::json!({
+            "required": true,
+            "accessibility": access.accessibility,
+            "inputMonitoring": access.input_monitoring,
+        })
+    }
+    #[cfg(not(target_os = "macos"))]
+    serde_json::json!({"required": false})
+}
+
+/// Open the System Settings pane where the user grants a hotkey permission.
+pub fn open_permission_settings(kind: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let pane = match kind {
+            "input-monitoring" => "Privacy_ListenEvent",
+            "accessibility" => "Privacy_Accessibility",
+            _ => return Err("未知的權限類型".into()),
+        };
+        std::process::Command::new("open")
+            .arg(format!(
+                "x-apple.systempreferences:com.apple.preference.security?{pane}"
+            ))
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = kind;
+        Err("此平台不需要額外授權".into())
+    }
+}
 impl HotkeyManager {
     pub fn new(app: AppHandle) -> Result<Self, String> {
         let mut initial = State {
@@ -159,6 +198,7 @@ impl HotkeyManager {
             app,
             state,
             operation: Mutex::new(()),
+            notice: Mutex::new(None),
             #[cfg(any(windows, target_os = "macos"))]
             runtime: Mutex::new(None),
         };
@@ -222,6 +262,18 @@ impl HotkeyManager {
             .ok()?
             .as_ref()
             .map(|(hook, _)| hook.provenance())
+    }
+    /// A user-facing explanation of why the saved hotkey is not active, if any.
+    pub fn set_notice(&self, notice: Option<String>) {
+        if let Ok(mut current) = self.notice.lock() {
+            *current = notice;
+        }
+    }
+    pub fn status(&self) -> serde_json::Value {
+        serde_json::json!({
+            "notice": self.notice.lock().ok().and_then(|n| n.clone()),
+            "permissions": permissions(),
+        })
     }
     pub fn current(&self) -> Result<Option<HotkeyConfig>, String> {
         Ok(self.state.lock().map_err(|e| e.to_string())?.config.clone())
@@ -298,10 +350,7 @@ impl HotkeyManager {
                             | (u32::from(key.mods.contains(Modifiers::ALT)) << 2)
                             | (u32::from(key.mods.intersects(Modifiers::SUPER | Modifiers::META))
                                 << 3);
-                        (
-                            keyboard::keycodes::key_to_vk(&key.key).unwrap_or(0) as u32,
-                            mods,
-                        )
+                        (keyboard::keycodes::key_to_vk(&key.key).unwrap_or(0), mods)
                     }
                     _ => (0, 0),
                 };
@@ -319,6 +368,7 @@ impl HotkeyManager {
                 emit(&self.app, Action::Cancel);
             }
         }
+        self.set_notice(None);
         Ok(())
     }
     pub fn set_capture(&self, capture: bool) {

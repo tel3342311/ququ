@@ -3,6 +3,7 @@ import {
   CUSTOM_HOTKEY_PRESET,
   createHotkeyCapture,
   customPresetLabel,
+  hotkeyPermissionGuidance,
   hotkeyPresetsForPlatform,
   keyForPresetValue,
   normalizeHotkeyPlatform,
@@ -24,6 +25,7 @@ export default function HotkeySettings() {
   const [releasing, setReleasing] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [permission, setPermission] = useState(null);
 
   useEffect(() => {
     if (!native) return;
@@ -39,6 +41,17 @@ export default function HotkeySettings() {
     }).catch(reason => { if (active) setError(message(reason)); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
+  }, [api, native]);
+
+  // Re-check when the user comes back from System Settings after granting access.
+  useEffect(() => {
+    if (!native || typeof api.getHotkeyStatus !== 'function') return;
+    let active = true;
+    const refresh = () => Promise.resolve(api.getHotkeyStatus())
+      .then(value => { if (active) setPermission(value); }).catch(() => {});
+    refresh();
+    window.addEventListener('focus', refresh);
+    return () => { active = false; window.removeEventListener('focus', refresh); };
   }, [api, native]);
 
   useEffect(() => {
@@ -94,8 +107,23 @@ export default function HotkeySettings() {
       if (!result?.success) throw new Error(result?.error || '快速鍵儲存失敗');
       setSaved({ ...config }); setStatus('快速鍵已儲存。');
     } catch (reason) { setError(message(reason)); }
-    finally { setSaving(false); }
+    finally { setSaving(false); await refreshPermission(); }
   };
+  const refreshPermission = () => Promise.resolve(api.getHotkeyStatus()).then(setPermission).catch(() => {});
+  const openPane = async pane => {
+    setError('');
+    try { await api.openSystemPermissions(pane); } catch (reason) { setError(message(reason)); }
+  };
+  const reapply = async () => {
+    setSaving(true); setError(''); setStatus('');
+    try {
+      const result = await api.setHotkeyConfig(permission.desired);
+      if (!result?.success) throw new Error(result?.error || '快速鍵套用失敗');
+      setConfig(permission.desired); setSaved(permission.desired); setStatus('快速鍵已套用。');
+    } catch (reason) { setError(message(reason)); }
+    finally { setSaving(false); await refreshPermission(); }
+  };
+  const guidance = hotkeyPermissionGuidance(permission, config.key);
   const disabled = loading || saving || capturing || releasing;
   const dirty = !saved || saved.key !== config.key || saved.mode !== config.mode;
   const presets = hotkeyPresetsForPlatform(platform);
@@ -121,6 +149,13 @@ export default function HotkeySettings() {
       <option value="hold">按住錄音，放開停止</option>
     </select></label>
     <button type="button" disabled={disabled || !dirty} onClick={save} className="rounded bg-blue-600 text-white px-4 py-2 disabled:opacity-50">{saving ? '正在儲存…' : '儲存快速鍵'}</button>
+    {guidance && <div role="alert" className="rounded border border-amber-500 p-3 text-sm space-y-2">
+      <p className="break-words">{guidance.message}</p>
+      <div className="flex flex-wrap gap-2">
+        {guidance.actions.map(action => <button key={action.pane} type="button" onClick={() => openPane(action.pane)} className="rounded border px-3 py-1">{action.label}</button>)}
+        {guidance.canReapply && <button type="button" disabled={disabled} onClick={reapply} className="rounded border px-3 py-1 disabled:opacity-50">重新套用已儲存的快速鍵</button>}
+      </div>
+    </div>}
     {error && <p role="alert" className="text-sm text-red-600 break-words">{error}</p>}
     <p role="status" className="text-sm">{status}</p>
   </section>;

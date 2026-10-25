@@ -29,8 +29,31 @@ pub const KEY_ALT_RIGHT: u32 = 0x3D;
 pub const KEY_COMMAND_LEFT: u32 = 0x37;
 pub const KEY_COMMAND_RIGHT: u32 = 0x36;
 
-pub const PERMISSION_ERROR_MESSAGE: &str =
-    "macOS Input Monitoring or Accessibility permission is required for single modifier hotkeys. Please grant QuQu permission in System Settings > Privacy & Security > Accessibility.";
+/// Shown when the keyboard hook cannot be created even though both permissions look granted.
+pub const HOOK_ERROR_MESSAGE: &str =
+    "無法啟動全域快速鍵監聽。請確認「系統設定 > 隱私權與安全性」的「輸入監控」與「輔助使用」都已開啟「蛐蛐」，然後重新開啟蛐蛐。";
+
+/// The two macOS privacy permissions a system-wide modifier hotkey depends on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Access {
+    /// 輔助使用 (Accessibility)
+    pub accessibility: bool,
+    /// 輸入監控 (Input Monitoring) - required to observe keys while another app is focused.
+    pub input_monitoring: bool,
+}
+
+/// Traditional Chinese guidance naming exactly the permissions that are still missing.
+pub fn permission_message(access: Access) -> Option<String> {
+    let missing = match (access.input_monitoring, access.accessibility) {
+        (true, true) => return None,
+        (false, true) => "「輸入監控」",
+        (true, false) => "「輔助使用」",
+        (false, false) => "「輸入監控」與「輔助使用」",
+    };
+    Some(format!(
+        "快速鍵需要{missing}權限，才能在其他應用程式中使用。請開啟「系統設定 > 隱私權與安全性」，在{missing}中允許「蛐蛐」，然後重新開啟蛐蛐。"
+    ))
+}
 
 pub fn modifier_mask(key: usize) -> Option<u64> {
     match key as u32 {
@@ -103,6 +126,8 @@ extern "C" {
     fn CGEventGetIntegerValueField(event: CGEventRef, field: u32) -> i64;
     fn CGEventGetFlags(event: CGEventRef) -> u64;
     fn CGEventSourceKeyState(state_id: i32, key: u16) -> bool;
+    fn CGPreflightListenEventAccess() -> bool;
+    fn CGRequestListenEventAccess() -> bool;
 }
 
 #[link(name = "CoreFoundation", kind = "framework")]
@@ -143,6 +168,30 @@ extern "C" {
 
 pub fn is_process_trusted() -> bool {
     unsafe { AXIsProcessTrusted() }
+}
+
+pub fn has_input_monitoring() -> bool {
+    unsafe { CGPreflightListenEventAccess() }
+}
+
+pub fn access() -> Access {
+    Access {
+        accessibility: is_process_trusted(),
+        input_monitoring: has_input_monitoring(),
+    }
+}
+
+/// Ask macOS to show its prompt for every permission that is still missing. This also
+/// registers the app in the matching System Settings list so the user can enable it.
+pub fn request_access(access: Access) {
+    if !access.accessibility {
+        prompt_accessibility();
+    }
+    if !access.input_monitoring {
+        unsafe {
+            CGRequestListenEventAccess();
+        }
+    }
 }
 
 pub fn prompt_accessibility() {
@@ -281,9 +330,12 @@ unsafe impl Sync for Hook {}
 
 impl Hook {
     pub fn start() -> Result<(Self, Receiver<Input>), String> {
-        if !is_process_trusted() {
-            prompt_accessibility();
-            return Err(PERMISSION_ERROR_MESSAGE.into());
+        // Without Input Monitoring a tap cannot see keys typed in other apps, so the hotkey
+        // would only work while QuQu itself is focused. Refuse to start and say why.
+        let granted = access();
+        if let Some(message) = permission_message(granted) {
+            request_access(granted);
+            return Err(message);
         }
         let provenance = Arc::new(Provenance::default());
         let hook_provenance = Arc::clone(&provenance);
@@ -317,7 +369,9 @@ impl Hook {
                     )
                 };
                 if tap.is_null() {
-                    let _ = ready_tx.send(Err(PERMISSION_ERROR_MESSAGE.into()));
+                    let _ = ready_tx
+                        .send(Err(permission_message(access())
+                            .unwrap_or_else(|| HOOK_ERROR_MESSAGE.into())));
                     return;
                 }
                 context.tap = tap;
@@ -327,9 +381,7 @@ impl Hook {
                         CFMachPortInvalidate(tap);
                         CFRelease(tap as *const c_void);
                     }
-                    let _ = ready_tx.send(Err(
-                        "Cannot install keyboard hook: failed to create run loop source".into(),
-                    ));
+                    let _ = ready_tx.send(Err(HOOK_ERROR_MESSAGE.into()));
                     return;
                 }
                 let run_loop = unsafe { CFRunLoopGetCurrent() };
@@ -443,19 +495,48 @@ mod tests {
     }
 
     #[test]
-    fn permission_error_message_is_actionable() {
-        assert!(PERMISSION_ERROR_MESSAGE.contains("Accessibility"));
-        assert!(PERMISSION_ERROR_MESSAGE.contains("Input Monitoring"));
-        assert!(PERMISSION_ERROR_MESSAGE.contains("System Settings"));
+    fn no_guidance_when_both_permissions_are_granted() {
+        let granted = Access {
+            accessibility: true,
+            input_monitoring: true,
+        };
+        assert_eq!(permission_message(granted), None);
     }
 
     #[test]
-    fn hook_start_reports_permission_error_when_untrusted() {
-        if !is_process_trusted() {
-            let result = Hook::start();
-            assert!(result.is_err());
-            let err = result.err().unwrap();
-            assert_eq!(err, PERMISSION_ERROR_MESSAGE);
+    fn guidance_names_only_the_missing_permission_in_traditional_chinese() {
+        let only_input = permission_message(Access {
+            accessibility: true,
+            input_monitoring: false,
+        })
+        .unwrap();
+        assert!(only_input.contains("輸入監控"));
+        assert!(!only_input.contains("輔助使用"));
+        assert!(only_input.contains("系統設定"));
+        assert!(only_input.contains("重新開啟"));
+
+        let only_ax = permission_message(Access {
+            accessibility: false,
+            input_monitoring: true,
+        })
+        .unwrap();
+        assert!(only_ax.contains("輔助使用"));
+        assert!(!only_ax.contains("輸入監控"));
+
+        let both = permission_message(Access {
+            accessibility: false,
+            input_monitoring: false,
+        })
+        .unwrap();
+        assert!(both.contains("輸入監控") && both.contains("輔助使用"));
+    }
+
+    #[test]
+    fn hook_start_refuses_when_a_permission_is_missing() {
+        let granted = access();
+        if let Some(expected) = permission_message(granted) {
+            let err = Hook::start().err().expect("hook must not start");
+            assert_eq!(err, expected);
         }
     }
 

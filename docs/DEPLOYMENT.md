@@ -181,7 +181,7 @@ Adjust the path for Intel builds. Ad-hoc signing is a local testing option, not 
 1. Open the DMG and drag **蛐蛐.app** into **Applications**.
 2. Launch the installed copy, allow microphone access and download the selected model.
 3. Grant Accessibility permission if required for simulated paste. Test typing into a separate editor.
-4. Configure a **combination shortcut**. Standalone left/right modifier hotkeys work on Windows and macOS; on macOS they require Accessibility permission, requested when such a hotkey is first saved.
+4. Configure a **combination shortcut**. Standalone left/right modifier hotkeys work on Windows and macOS; on macOS they require Input Monitoring and Accessibility permission, requested when such a hotkey is first saved.
 5. Verify both interfaces, tray/menu-bar behavior, audio decoding, native inference and clipboard/paste on the target Mac.
 
 Compact samples the mouse position when recording starts and stays fixed there until the recording ends. Release packaging alone does not establish feature parity with the tested Windows build.
@@ -224,7 +224,7 @@ Performance measurements and their limits are in [performance-baseline.md](perfo
 | Electron/better-sqlite3 postinstall fails | Use the pnpm install command above with `--ignore-scripts`; build with `build:rust`. |
 | Compact looks like the app disappeared | It hides while idle. Use the tray/menu bar to open Settings or choose Classic. |
 | No recognition after installation | Open model settings, download/initialize SenseVoice, and check microphone access. |
-| macOS paste or hotkey fails | Check Accessibility permissions and use a combination shortcut; validate on that Mac. |
+| macOS paste or hotkey fails | Check Input Monitoring and Accessibility permissions and use a combination shortcut; validate on that Mac. |
 | macOS refuses the downloaded release | Verify signing/notarization and the installed bundle; rebuild with valid distribution credentials. |
 | First build/download fails offline | Dependencies, packaging tools and model weights have separate network requirements; prepare them before offline deployment. |
 
