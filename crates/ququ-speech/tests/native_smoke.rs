@@ -25,6 +25,12 @@ fn real_sensevoice_recognition_reuse_silence_and_failed_switch() {
     assert!(first.success && !first.text.trim().is_empty());
     assert_eq!(first.engine, Engine::SenseVoice);
     assert_eq!(first.model_type, "onnx");
+    assert_eq!(first.language, "zh-TW");
+    assert_eq!(first.text, ququ_speech::to_traditional_tw(&first.text));
+    assert_eq!(
+        first.raw_text,
+        ququ_speech::to_traditional_tw(&first.raw_text)
+    );
     assert!(service.status(Engine::SenseVoice).unwrap().initialized);
 
     // A missing optional engine must not destroy the already loaded engine.

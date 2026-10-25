@@ -4,11 +4,13 @@
 //! and transcription on a blocking worker, never on their UI thread.
 
 pub mod audio;
+pub mod convert;
 pub mod models;
 #[cfg(feature = "native")]
 mod native;
 mod service;
 
+pub use convert::{convert_for_language, to_traditional_tw};
 pub use models::{available_models, DownloadProgress, Engine, ModelInfo, ModelState};
 pub use service::{SpeechService, SpeechStatus, TranscribeOptions, Transcription};
 

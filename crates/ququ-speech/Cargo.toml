@@ -17,6 +17,7 @@ thiserror = "2"
 hound = "3.5"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 tempfile = "3"
+ferrous-opencc = { version = "0.4.0", default-features = false, features = ["s2t-conversion"] }
 sherpa-onnx = { version = "=1.13.8", optional = true }
 
 [dev-dependencies]
