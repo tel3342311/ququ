@@ -1,4 +1,10 @@
 import { useState, useCallback } from 'react';
+import {
+  buildChatCompletionRequest,
+  extractAIErrorMessage,
+  parseChatCompletionResponse,
+  resolveAIConfig,
+} from '../desktop/ai.mjs';
 
 /**
  * 文本处理Hook
@@ -102,28 +108,38 @@ export const useTextProcessing = () => {
 
   // 直接调用AI API
   const callAIAPI = useCallback(async (text, mode) => {
-    // 优先从Electron API获取设置，然后是localStorage，最后是环境变量
-    let apiKey, baseUrl, model;
+    // 优先从Electron API获取设置，然后是localStorage
+    let rawConfig;
     
     if (window.electronAPI) {
       try {
-        apiKey = await window.electronAPI.getSetting('ai_api_key');
-        baseUrl = await window.electronAPI.getSetting('ai_base_url') || 'https://api.openai.com/v1';
-        model = await window.electronAPI.getSetting('ai_model') || 'gpt-3.5-turbo';
-      } catch (error) {
+        rawConfig = {
+          ai_provider: await window.electronAPI.getSetting('ai_provider'),
+          ai_api_key: await window.electronAPI.getSetting('ai_api_key'),
+          ai_base_url: await window.electronAPI.getSetting('ai_base_url'),
+          ai_model: await window.electronAPI.getSetting('ai_model'),
+        };
+      } catch {
         // 如果获取设置失败，回退到localStorage
-        apiKey = localStorage.getItem('ai_api_key');
-        baseUrl = localStorage.getItem('ai_base_url') || 'https://api.openai.com/v1';
-        model = localStorage.getItem('ai_model') || 'gpt-3.5-turbo';
+        rawConfig = {
+          ai_provider: localStorage.getItem('ai_provider'),
+          ai_api_key: localStorage.getItem('ai_api_key'),
+          ai_base_url: localStorage.getItem('ai_base_url'),
+          ai_model: localStorage.getItem('ai_model'),
+        };
       }
     } else {
       // Web环境下使用localStorage
-      apiKey = localStorage.getItem('ai_api_key');
-      baseUrl = localStorage.getItem('ai_base_url') || 'https://api.openai.com/v1';
-      model = localStorage.getItem('ai_model') || 'gpt-3.5-turbo';
+      rawConfig = {
+        ai_provider: localStorage.getItem('ai_provider'),
+        ai_api_key: localStorage.getItem('ai_api_key'),
+        ai_base_url: localStorage.getItem('ai_base_url'),
+        ai_model: localStorage.getItem('ai_model'),
+      };
     }
-    
-    if (!apiKey) {
+
+    const resolvedConfig = resolveAIConfig(rawConfig);
+    if (!resolvedConfig.ai_api_key) {
       throw new Error('請先在設定頁面設定 AI API 金鑰');
     }
 
@@ -211,20 +227,12 @@ ${text}
 請直接回傳最佳化後的文字，不需要解釋過程。`
     };
 
-    // baseUrl和model已经在上面获取了
-
-    const requestData = {
-      model: model,
-      messages: [
-        {
-          role: 'user',
-          content: prompts[mode] || prompts.optimize
-        }
-      ],
+    const request = buildChatCompletionRequest(resolvedConfig, {
+      prompt: prompts[mode] || prompts.optimize,
+      test: false,
       temperature: 0.3,
-      max_tokens: 2000,
-      stream: false
-    };
+    });
+    const { baseUrl, model, body: requestData } = request;
 
     if (window.electronAPI && window.electronAPI.log) {
       window.electronAPI.log('info', '前端AI文本处理请求:', {
@@ -236,12 +244,9 @@ ${text}
       });
     }
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetch(request.url, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
+      headers: request.headers,
       body: JSON.stringify(requestData)
     });
 
@@ -254,7 +259,7 @@ ${text}
           errorData
         });
       }
-      throw new Error(errorData.error?.message || `API 請求失敗: ${response.status}`);
+      throw new Error(extractAIErrorMessage(errorData, response.status));
     }
 
     const data = await response.json();
@@ -267,11 +272,12 @@ ${text}
       });
     }
     
-    if (data.choices && data.choices.length > 0) {
+    try {
+      const parsed = parseChatCompletionResponse(data);
       const result = {
         success: true,
-        text: data.choices[0].message.content.trim(),
-        usage: data.usage
+        text: parsed.text,
+        usage: parsed.usage
       };
       
       if (window.electronAPI && window.electronAPI.log) {
@@ -283,7 +289,7 @@ ${text}
       }
       
       return result;
-    } else {
+    } catch {
       if (window.electronAPI && window.electronAPI.log) {
         window.electronAPI.log('error', '前端AI API返回数据格式错误:', data);
       }
@@ -293,6 +299,7 @@ ${text}
 
   return {
     handleTranscription,
+    processText: callAIAPI,
     isProcessing,
     error
   };

@@ -1008,8 +1008,12 @@ ${text}
 請直接回傳最佳化後的文字，不需要解釋過程。`
       };
 
-      const baseUrl = await this.databaseManager.getSetting('ai_base_url') || 'https://api.openai.com/v1';
-      const model = await this.databaseManager.getSetting('ai_model') || 'gpt-3.5-turbo';
+      const provider = await this.databaseManager.getSetting('ai_provider');
+      const rawBaseUrl = await this.databaseManager.getSetting('ai_base_url');
+      const rawModel = await this.databaseManager.getSetting('ai_model');
+      const isGoogle = provider === 'google' || (typeof rawBaseUrl === 'string' && rawBaseUrl.toLowerCase().includes('generativelanguage.googleapis.com'));
+      const baseUrl = ((rawBaseUrl && rawBaseUrl.trim()) || (isGoogle ? 'https://generativelanguage.googleapis.com/v1beta/openai' : 'https://api.openai.com/v1')).replace(/\/+$/, '');
+      const model = (rawModel && rawModel.trim()) || (isGoogle ? 'gemini-2.5-flash' : 'gpt-3.5-turbo');
 
       const requestData = {
         model: model,
@@ -1020,9 +1024,11 @@ ${text}
           }
         ],
         temperature: 0.3,
-        max_tokens: 2000,
         stream: false
       };
+      if (!isGoogle) {
+        requestData.max_tokens = 2000;
+      }
 
       this.logger.info('AI文本处理请求:', {
         baseUrl,
@@ -1049,7 +1055,8 @@ ${text}
         } catch {
           errorData = { error: errorText || response.statusText };
         }
-        throw new Error(errorData.error?.message || errorData.error || `API error: ${response.status}`);
+        const candidate = Array.isArray(errorData) ? errorData[0] : errorData;
+        throw new Error(candidate?.error?.message || candidate?.error || `API error: ${response.status}`);
       }
 
       const data = await response.json();
@@ -1118,17 +1125,22 @@ ${text}
       this.logger.info('开始测试AI配置...', testConfig ? '使用临时配置' : '使用已保存配置');
       
       // 如果提供了测试配置，使用测试配置；否则使用已保存的配置
-      let apiKey, baseUrl, model;
+      let apiKey, baseUrl, model, isGoogle;
       
       if (testConfig) {
         apiKey = testConfig.ai_api_key;
-        baseUrl = testConfig.ai_base_url || 'https://api.openai.com/v1';
-        model = testConfig.ai_model || 'gpt-3.5-turbo';
+        isGoogle = testConfig.ai_provider === 'google' || (typeof testConfig.ai_base_url === 'string' && testConfig.ai_base_url.toLowerCase().includes('generativelanguage.googleapis.com'));
+        baseUrl = ((testConfig.ai_base_url && testConfig.ai_base_url.trim()) || (isGoogle ? 'https://generativelanguage.googleapis.com/v1beta/openai' : 'https://api.openai.com/v1')).replace(/\/+$/, '');
+        model = (testConfig.ai_model && testConfig.ai_model.trim()) || (isGoogle ? 'gemini-2.5-flash' : 'gpt-3.5-turbo');
         this.logger.info('使用临时测试配置:', { baseUrl, model, apiKeyLength: apiKey?.length || 0 });
       } else {
+        const provider = await this.databaseManager.getSetting('ai_provider');
+        const rawBaseUrl = await this.databaseManager.getSetting('ai_base_url');
+        const rawModel = await this.databaseManager.getSetting('ai_model');
+        isGoogle = provider === 'google' || (typeof rawBaseUrl === 'string' && rawBaseUrl.toLowerCase().includes('generativelanguage.googleapis.com'));
         apiKey = await this.databaseManager.getSetting('ai_api_key');
-        baseUrl = await this.databaseManager.getSetting('ai_base_url') || 'https://api.openai.com/v1';
-        model = await this.databaseManager.getSetting('ai_model') || 'gpt-3.5-turbo';
+        baseUrl = ((rawBaseUrl && rawBaseUrl.trim()) || (isGoogle ? 'https://generativelanguage.googleapis.com/v1beta/openai' : 'https://api.openai.com/v1')).replace(/\/+$/, '');
+        model = (rawModel && rawModel.trim()) || (isGoogle ? 'gemini-2.5-flash' : 'gpt-3.5-turbo');
         this.logger.info('使用已保存配置:', { baseUrl, model, apiKeyLength: apiKey?.length || 0 });
       }
       
@@ -1157,9 +1169,12 @@ ${text}
             content: testMessage
           }
         ],
-        max_tokens: 50,
-        temperature: 0.1
+        temperature: 0.1,
+        stream: false
       };
+      if (!isGoogle) {
+        requestData.max_tokens = 50;
+      }
 
       this.logger.info('发送AI测试请求:', requestData);
 
@@ -1185,7 +1200,8 @@ ${text}
           errorData = { error: errorText || response.statusText };
         }
         
-        let errorMessage = errorData.error?.message || errorData.error || `HTTP ${response.status}`;
+        const candidate = Array.isArray(errorData) ? errorData[0] : errorData;
+        let errorMessage = candidate?.error?.message || candidate?.error || `HTTP ${response.status}`;
         if (response.status === 401) {
           errorMessage = 'API 金鑰無效或已過期';
         } else if (response.status === 403) {
