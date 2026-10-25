@@ -1,11 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { createHotkeyCapture } from '../desktop/hotkey.mjs';
+import {
+  CUSTOM_HOTKEY_PRESET,
+  createHotkeyCapture,
+  customPresetLabel,
+  hotkeyPresetsForPlatform,
+  keyForPresetValue,
+  normalizeHotkeyPlatform,
+  presetValueForKey,
+} from '../desktop/hotkey.mjs';
 
 const message = error => error?.message || String(error);
 
 export default function HotkeySettings() {
   const api = window.electronAPI;
   const native = api?.runtime === 'tauri';
+  const [platform, setPlatform] = useState(() => normalizeHotkeyPlatform());
   const [config, setConfig] = useState({ key: 'Control+Shift+Space', mode: 'toggle' });
   const [saved, setSaved] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -19,6 +28,11 @@ export default function HotkeySettings() {
   useEffect(() => {
     if (!native) return;
     let active = true;
+    if (typeof api.getSystemInfo === 'function') {
+      Promise.resolve(api.getSystemInfo()).then(info => {
+        if (active && info?.platform) setPlatform(normalizeHotkeyPlatform(info.platform));
+      }).catch(() => {});
+    }
     api.getHotkeyConfig().then(value => {
       if (!active) return;
       setConfig(value); setSaved(value);
@@ -84,9 +98,19 @@ export default function HotkeySettings() {
   };
   const disabled = loading || saving || capturing || releasing;
   const dirty = !saved || saved.key !== config.key || saved.mode !== config.mode;
+  const presets = hotkeyPresetsForPlatform(platform);
+  const selectedPreset = presetValueForKey(config.key, platform);
   return <section className="rounded-lg border p-5 space-y-4">
     <h2 className="text-lg font-semibold">錄音快速鍵</h2>
     <p className="text-sm text-muted-foreground">支援左 / 右 Ctrl、Shift、Alt、Win，功能鍵或組合鍵。按 Esc 或切換視窗取消擷取。</p>
+    <label className="block">常用快速鍵<select disabled={disabled} value={selectedPreset} onChange={event => {
+      const key = keyForPresetValue(event.target.value, config.key, platform);
+      setConfig(previous => ({ ...previous, key }));
+      setError(''); setStatus('');
+    }} className="mt-1 block w-full rounded border p-2 bg-background">
+      {presets.map(preset => <option key={preset.key} value={preset.key}>{preset.label}</option>)}
+      <option value={CUSTOM_HOTKEY_PRESET} disabled={selectedPreset !== CUSTOM_HOTKEY_PRESET}>{customPresetLabel(config.key, platform)}</option>
+    </select></label>
     <div className="flex flex-wrap items-center gap-3">
       <output className="rounded border px-3 py-2 font-mono" aria-label="錄音快速鍵">{config.key}</output>
       <button type="button" disabled={disabled} onClick={() => { setError(''); setStatus(''); setCapturing(true); }} className="rounded border px-4 py-2 disabled:opacity-50">{capturing ? armed ? '請按快速鍵…' : '正在準備…' : releasing ? '正在結束擷取…' : '重新擷取'}</button>
