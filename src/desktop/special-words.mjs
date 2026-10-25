@@ -21,10 +21,12 @@ export function applySpecialWords(text, specialWords = []) {
       typeof item.replacement === 'string' &&
       item.replacement.trim().length > 0
     ))
-    .map(item => ({
-      word: (typeof item.match_word === 'string' && item.match_word.trim() || item.word).trim(),
-      replacement: item.replacement.trim(),
-    }))
+    .flatMap(item => {
+      const replacement = item.replacement.trim();
+      const matched = typeof item.match_word === 'string' ? item.match_word.trim() : '';
+      const words = new Set([item.word.trim(), matched].filter(Boolean));
+      return [...words].map(word => ({ word, replacement }));
+    })
     // Sort descending by word length so longer phrases match first
     .sort((a, b) => b.word.length - a.word.length);
 
