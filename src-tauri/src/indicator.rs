@@ -23,9 +23,32 @@ fn foreground() -> isize {
     // Only the handle is retained. Typed text and other applications' contents are not read.
     unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() as isize }
 }
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
+fn foreground() -> isize {
+    // The frontmost application's pid identifies the paste target. No window contents are read.
+    objc2_app_kit::NSWorkspace::sharedWorkspace()
+        .frontmostApplication()
+        .map_or(0, |app| app.processIdentifier() as isize)
+}
+#[cfg(not(any(windows, target_os = "macos")))]
 fn foreground() -> isize {
     0
+}
+
+/// Bring the application that owned focus when dictation began back to the front.
+#[cfg(target_os = "macos")]
+#[allow(deprecated)] // activateWithOptions is the only API that works before macOS 14.
+fn activate(pid: isize) -> bool {
+    use objc2_app_kit::{NSApplicationActivationOptions, NSRunningApplication};
+    NSRunningApplication::runningApplicationWithProcessIdentifier(pid as i32).is_some_and(|app| {
+        app.activateWithOptions(NSApplicationActivationOptions::ActivateIgnoringOtherApps)
+    })
+}
+
+/// Whether text may be pasted: the dictation was not cancelled, focus is not on QuQu itself,
+/// and focus is still on the application that was captured when dictation began.
+fn paste_allowed(epoch_current: bool, external: bool, target: isize, current: isize) -> bool {
+    epoch_current && external && (target == 0 || target == current)
 }
 
 fn position(app: &AppHandle) -> Result<(), String> {
@@ -112,6 +135,9 @@ impl Indicator {
                 self.own.store(hwnd.0 as isize, Ordering::Release);
             }
         }
+        #[cfg(target_os = "macos")]
+        self.own
+            .store(std::process::id() as isize, Ordering::Release);
         let last = self.last_external.clone();
         #[cfg(not(windows))]
         let own = self.own.clone();
@@ -245,6 +271,20 @@ impl Indicator {
         Ok(())
     }
     pub fn prepare_paste(&self) {
+        #[cfg(target_os = "macos")]
+        {
+            // A Classic-mode click makes QuQu the active application, so Cmd+V would be
+            // delivered to QuQu. Give focus back to the captured application first.
+            let target = self.target.load(Ordering::Acquire);
+            if target != 0 && foreground() == self.own.load(Ordering::Acquire) && activate(target) {
+                for _ in 0..30 {
+                    if foreground() == target {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+            }
+        }
         #[cfg(windows)]
         unsafe {
             let current = foreground();
@@ -269,7 +309,7 @@ impl Indicator {
         let target = self.target.load(Ordering::Acquire);
         let clock = self.paste_epoch.clone();
         let epoch = clock.load(Ordering::Acquire);
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "macos"))]
         let own = self.own.load(Ordering::Acquire);
         move || {
             let current = foreground();
@@ -282,9 +322,42 @@ impl Indicator {
                 );
                 pid != std::process::id() && current != own
             };
-            #[cfg(not(windows))]
+            #[cfg(target_os = "macos")]
+            let external = current != own;
+            #[cfg(not(any(windows, target_os = "macos")))]
             let external = true;
-            clock.load(Ordering::Acquire) == epoch && external && (target == 0 || target == current)
+            paste_allowed(
+                clock.load(Ordering::Acquire) == epoch,
+                external,
+                target,
+                current,
+            )
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::paste_allowed;
+
+    #[test]
+    fn paste_requires_external_focus_on_the_captured_application() {
+        assert!(paste_allowed(true, true, 42, 42));
+        assert!(
+            paste_allowed(true, true, 0, 7),
+            "no captured target accepts any external app"
+        );
+        assert!(
+            !paste_allowed(true, false, 42, 42),
+            "never paste into QuQu itself"
+        );
+        assert!(
+            !paste_allowed(true, true, 42, 43),
+            "focus moved to another application"
+        );
+        assert!(
+            !paste_allowed(false, true, 42, 42),
+            "cancelled dictation is invalidated"
+        );
     }
 }

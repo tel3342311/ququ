@@ -1,5 +1,5 @@
 #[path = "keyboard/mod.rs"]
-mod keyboard;
+pub(crate) mod keyboard;
 use keyboard::machine::{Action, Machine};
 #[cfg(target_os = "macos")]
 use keyboard::macos as platform;
