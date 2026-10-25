@@ -44,6 +44,8 @@ fn build_request_payload(
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .unwrap_or(default_model);
+    let language = config["speech_language"].as_str().unwrap_or("zh");
+    let input_text = ququ_speech::convert_for_language(text, language);
     let prompts: Value =
         serde_json::from_str(include_str!("../prompts.json")).map_err(|e| e.to_string())?;
     let prompt = if test {
@@ -53,7 +55,7 @@ fn build_request_payload(
             .as_str()
             .or_else(|| prompts["optimize"].as_str())
             .ok_or("Missing prompt")?
-            .replace("__QUQU_INPUT_TEXT__", text)
+            .replace("__QUQU_INPUT_TEXT__", &input_text)
     };
     let body = if is_google {
         json!({
@@ -155,7 +157,15 @@ pub async fn complete(config: Value, text: &str, mode: &str, test: bool) -> Resu
         }
         Err(_) => return Err("AI 服務回傳了無效的 JSON".to_string()),
     };
-    parse_completion_body(status.as_u16(), status.is_success(), &body, &model, test)
+    let mut result =
+        parse_completion_body(status.as_u16(), status.is_success(), &body, &model, test)?;
+    if !test {
+        let language = config["speech_language"].as_str().unwrap_or("zh");
+        if let Some(text) = result["text"].as_str() {
+            result["text"] = json!(ququ_speech::convert_for_language(text, language));
+        }
+    }
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -296,5 +306,49 @@ mod tests {
         });
 
         server.join().unwrap();
+    }
+
+    #[test]
+    fn ai_complete_converts_simplified_input_and_output_to_taiwan_traditional() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap();
+            let request = String::from_utf8_lossy(&buf[..n]).into_owned();
+            let body = r#"{"choices":[{"message":{"content":"优化后的软体资料库与网络连线。"}}],"usage":{"total_tokens":12}}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream.write_all(response.as_bytes()).unwrap();
+            request
+        });
+
+        let config = json!({
+            "ai_api_key": "test-key",
+            "ai_base_url": format!("http://{addr}/v1"),
+            "ai_model": "test-model",
+            "speech_language": "zh"
+        });
+        let result = tauri::async_runtime::block_on(complete(
+            config,
+            "这个软体的语音辨识结果应该要显示繁体中文。",
+            "optimize",
+            false,
+        ))
+        .unwrap();
+        let request = server.join().unwrap();
+        assert!(
+            request.contains("這個軟體的語音辨識結果應該要顯示繁體中文。"),
+            "prompt sent to AI should be converted to Traditional Chinese: {request}"
+        );
+        assert_eq!(result["text"], "最佳化後的軟體資料庫與網路連線。");
+        assert_eq!(
+            ququ_speech::convert_for_language("図書館で勉強する", "ja"),
+            "図書館で勉強する"
+        );
     }
 }

@@ -48,6 +48,17 @@ test('applySpecialWords sorts longer phrases first to prevent partial replacemen
   assert.equal(applySpecialWords(sentence, words), '我們使用的是Kubernetes架構。');
 });
 
+test('applySpecialWords matches Traditional transcript using normalized match_word of a Simplified saved word', () => {
+  const entries = [{ word: '软件', match_word: '軟體', replacement: 'software' }];
+  assert.equal(applySpecialWords('這個軟體很好', entries), '這個software很好');
+});
+
+test('applySpecialWords also matches the original word when the transcript was not converted', () => {
+  const entries = [{ word: '学校', match_word: '學校', replacement: 'school' }];
+  assert.equal(applySpecialWords('学校はここ', entries), 'schoolはここ');
+  assert.equal(applySpecialWords('學校在這', entries), 'school在這');
+});
+
 test('isPair correctly identifies pairs vs plain words', () => {
   assert.equal(isPair({ word: '王小明' }), false);
   assert.equal(isPair({ word: '王小明', replacement: '' }), false);

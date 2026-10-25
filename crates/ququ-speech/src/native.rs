@@ -163,6 +163,8 @@ impl NativeRuntime {
                 }
             }
         }
+        let raw_text = crate::convert_for_language(&raw_text, &options.language);
+        let text = crate::convert_for_language(&text, &options.language);
         if options.language == "auto" {
             warnings.push(
                 "Pinned Rust API does not expose detected language; language remains auto".into(),
@@ -175,7 +177,7 @@ impl NativeRuntime {
             confidence: 0.0,
             duration,
             language: if options.language == "zh" {
-                "zh-CN".into()
+                "zh-TW".into()
             } else {
                 options.language.clone()
             },

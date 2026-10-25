@@ -15,7 +15,7 @@ The launcher also finds rustup under `~/.cargo/bin` when the terminal PATH has n
 
 Open Settings → Local speech engine to select SenseVoiceSmall INT8 or Paraformer. Download and switch loads the selected model after verifying every file's pinned length and SHA-256. Missing models never start an automatic download. SenseVoice requires about 240 MB including tokens and VAD; Paraformer with punctuation requires about 1.1 GB. Model weights live in the user data directory, outside the repository and installer.
 
-SenseVoice supports Chinese, Cantonese, English, Japanese, Korean and automatic language mode. Its punctuation setting also controls inverse text normalization. Paraformer supports Chinese and English and uses a separate punctuation model. Neither engine currently supports contextual hotwords. The converted Paraformer checkpoint differs from the legacy FunASR checkpoint, so identical transcripts are not promised.
+SenseVoice supports Chinese, Cantonese, English, Japanese, Korean and automatic language mode. Its punctuation setting also controls inverse text normalization. Paraformer supports Chinese and English and uses a separate punctuation model. Neither engine currently supports contextual hotwords. The converted Paraformer checkpoint differs from the legacy FunASR checkpoint, so identical transcripts are not promised. Recognized text, and AI-optimized text, is converted to Traditional Chinese (Taiwan, OpenCC `s2twp`) when the language is `zh` or `auto`; other languages, and text containing Japanese kana, are left unchanged (`crates/ququ-speech/src/convert.rs`).
 
 ## Build and verify
 
@@ -63,7 +63,7 @@ Verification: `npm run test:desktop`, `cargo test --manifest-path src-tauri/Carg
 
 ## Special words (專有詞彙)
 
-Special words are stored in the `special_words` table of the existing SQLite database and managed in Settings → 專有詞彙. In Classic mode, selecting text in the current result or in a History entry shows a bubble with an add button and an optional correct-spelling box. A word saved with a correct spelling is a heard-to-correct pair: it updates the sentence shown (and the History entry, persisted) and is applied to future dictation after recognition and again after optional AI optimization (`src/desktop/special-words.mjs`). Saving an existing word without a spelling keeps its stored spelling. A word without a spelling is only stored; the speech engines do not support recognition biasing.
+Special words are stored in the `special_words` table of the existing SQLite database and managed in Settings → 專有詞彙. In Classic mode, selecting text in the current result or in a History entry shows a bubble with an add button and an optional correct-spelling box. A word saved with a correct spelling is a heard-to-correct pair: it updates the sentence shown (and the History entry, persisted) and is applied to future dictation after recognition and again after optional AI optimization (`src/desktop/special-words.mjs`). Because `zh`/`auto` output is converted to Traditional Chinese (Taiwan), a heard word is matched both as saved and in its Traditional Taiwan form, so Simplified entries still apply. Saving an existing word without a spelling keeps its stored spelling. A word without a spelling is only stored; the speech engines do not support recognition biasing.
 
 ## Performance evidence
 

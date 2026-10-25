@@ -54,6 +54,8 @@ jobs:
         with:
           workspaces: src-tauri
           key: ${{ matrix.target }}
+          cache-directories: |
+            src-tauri/target/sherpa-onnx-prebuilt
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
@@ -71,6 +73,9 @@ jobs:
             export APPLE_ID="${{ secrets.APPLE_ID }}"
             export APPLE_PASSWORD="${{ secrets.APPLE_PASSWORD }}"
             export APPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}"
+          fi
+          if [ ! -d "src-tauri/target/sherpa-onnx-prebuilt" ]; then
+            cargo clean --package sherpa-onnx-sys --manifest-path src-tauri/Cargo.toml || true
           fi
           npm run build:rust -- --config src-tauri/tauri.macos.conf.json --target ${{ matrix.target }}
 
