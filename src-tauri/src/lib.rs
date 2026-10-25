@@ -153,7 +153,21 @@ async fn desktop_command(
             .map_err(|e| e.to_string())?;
             Ok(result)
         }
-        "get-special-words" => state.database()?.get_special_words(),
+        "get-special-words" => {
+            let mut words = state.database()?.get_special_words()?;
+            if let Some(items) = words.as_array_mut() {
+                for item in items {
+                    let matched = item
+                        .get("word")
+                        .and_then(Value::as_str)
+                        .map(ququ_speech::to_traditional_tw);
+                    if let (Some(matched), Some(obj)) = (matched, item.as_object_mut()) {
+                        obj.insert("match_word".into(), json!(matched));
+                    }
+                }
+            }
+            Ok(words)
+        }
         "save-special-word" => {
             let data = arg(&args, 0);
             let payload = if data.is_object() {

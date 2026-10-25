@@ -4,7 +4,7 @@
  * Longer words are replaced first to prevent partial substrings from conflicting.
  *
  * @param {string} text - The input text from speech recognition or AI optimization.
- * @param {Array<{word: string, replacement?: string}>} specialWords - List of special words or pairs.
+ * @param {Array<{word: string, match_word?: string, replacement?: string}>} specialWords - List of special words or pairs.
  * @returns {string} The text with all replacement pairs applied.
  */
 export function applySpecialWords(text, specialWords = []) {
@@ -22,7 +22,7 @@ export function applySpecialWords(text, specialWords = []) {
       item.replacement.trim().length > 0
     ))
     .map(item => ({
-      word: item.word.trim(),
+      word: (typeof item.match_word === 'string' && item.match_word.trim() || item.word).trim(),
       replacement: item.replacement.trim(),
     }))
     // Sort descending by word length so longer phrases match first

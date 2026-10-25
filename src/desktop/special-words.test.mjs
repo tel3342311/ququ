@@ -48,6 +48,11 @@ test('applySpecialWords sorts longer phrases first to prevent partial replacemen
   assert.equal(applySpecialWords(sentence, words), '我們使用的是Kubernetes架構。');
 });
 
+test('applySpecialWords matches Traditional transcript using normalized match_word of a Simplified saved word', () => {
+  const entries = [{ word: '软件', match_word: '軟體', replacement: 'software' }];
+  assert.equal(applySpecialWords('這個軟體很好', entries), '這個software很好');
+});
+
 test('isPair correctly identifies pairs vs plain words', () => {
   assert.equal(isPair({ word: '王小明' }), false);
   assert.equal(isPair({ word: '王小明', replacement: '' }), false);
