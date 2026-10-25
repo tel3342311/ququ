@@ -10,12 +10,33 @@ import NativeSpeechSettings from './components/NativeSpeechSettings';
 import HotkeySettings from './components/HotkeySettings';
 import InterfaceSettings from './components/InterfaceSettings';
 import SpecialWordsSettings from './components/SpecialWordsSettings';
+import {
+  AI_PROVIDERS,
+  AI_PROVIDER_GOOGLE,
+  AI_PROVIDER_OPENAI,
+  ALIYUN_RECOMMENDED_BASE_URL,
+  ALIYUN_RECOMMENDED_MODEL,
+  GOOGLE_AI_DEFAULT_BASE_URL,
+  GOOGLE_AI_DEFAULT_MODEL,
+  OPENAI_DEFAULT_BASE_URL,
+  OPENAI_DEFAULT_MODEL,
+  applyProviderPreset,
+  defaultBaseUrlForProvider,
+  defaultModelForProvider,
+  inferAIProvider,
+  isGoogleAIBaseUrl,
+  isPredefinedModel,
+  modelsForProvider,
+  normalizeLoadedAISettings,
+  resolveAIConfig,
+} from './desktop/ai.mjs';
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState({
+    ai_provider: AI_PROVIDER_OPENAI,
     ai_api_key: "",
-    ai_base_url: "https://api.openai.com/v1",
-    ai_model: "gpt-3.5-turbo",
+    ai_base_url: OPENAI_DEFAULT_BASE_URL,
+    ai_model: OPENAI_DEFAULT_MODEL,
     enable_ai_optimization: true
   });
   
@@ -52,17 +73,9 @@ const SettingsPage = () => {
       setLoading(true);
       if (window.electronAPI) {
         const allSettings = await window.electronAPI.getAllSettings();
-        const loadedSettings = {
-          ai_api_key: allSettings.ai_api_key || "",
-          ai_base_url: allSettings.ai_base_url || "https://api.openai.com/v1",
-          ai_model: allSettings.ai_model || "gpt-3.5-turbo",
-          enable_ai_optimization: allSettings.enable_ai_optimization !== false // 默认为true
-        };
+        const loadedSettings = normalizeLoadedAISettings(allSettings);
         setSettings(prev => ({ ...prev, ...loadedSettings }));
-        
-        // 检查是否使用自定义模型
-        const predefinedModels = ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-4o-mini", "qwen3-30b-a3b-instruct-2507"];
-        setCustomModel(!predefinedModels.includes(loadedSettings.ai_model));
+        setCustomModel(!isPredefinedModel(loadedSettings.ai_model, loadedSettings.ai_provider));
       }
     } catch (error) {
       console.error("加载设置失败:", error);
@@ -77,11 +90,13 @@ const SettingsPage = () => {
     try {
       setSaving(true);
       if (window.electronAPI) {
-        // 保存每个设置项
-        await window.electronAPI.setSetting('ai_api_key', settings.ai_api_key);
-        await window.electronAPI.setSetting('ai_base_url', settings.ai_base_url);
-        await window.electronAPI.setSetting('ai_model', settings.ai_model);
-        await window.electronAPI.setSetting('enable_ai_optimization', settings.enable_ai_optimization);
+        const resolved = resolveAIConfig(settings);
+        setSettings(prev => ({ ...prev, ...resolved }));
+        await window.electronAPI.setSetting('ai_provider', resolved.ai_provider);
+        await window.electronAPI.setSetting('ai_api_key', resolved.ai_api_key);
+        await window.electronAPI.setSetting('ai_base_url', resolved.ai_base_url);
+        await window.electronAPI.setSetting('ai_model', resolved.ai_model);
+        await window.electronAPI.setSetting('enable_ai_optimization', resolved.enable_ai_optimization);
         
         toast.success("設定儲存成功");
       }
@@ -95,18 +110,30 @@ const SettingsPage = () => {
 
   // 处理输入变化
   const handleInputChange = (key, value) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: value
-    }));
+    setSettings(prev => {
+      const next = {
+        ...prev,
+        [key]: value
+      };
+      if (key === 'ai_base_url' && isGoogleAIBaseUrl(value)) {
+        next.ai_provider = AI_PROVIDER_GOOGLE;
+      }
+      return next;
+    });
+  };
+
+  const handleProviderChange = (nextProvider) => {
+    setSettings(prev => applyProviderPreset(prev, nextProvider));
+    setCustomModel(false);
   };
 
   // 应用推荐配置
   const applyRecommendedConfig = () => {
     setSettings(prev => ({
       ...prev,
-      ai_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-      ai_model: "qwen3-30b-a3b-instruct-2507"
+      ai_provider: AI_PROVIDER_OPENAI,
+      ai_base_url: ALIYUN_RECOMMENDED_BASE_URL,
+      ai_model: ALIYUN_RECOMMENDED_MODEL
     }));
     setCustomModel(true);
     toast.info("已套用阿里雲推薦設定");
@@ -116,11 +143,19 @@ const SettingsPage = () => {
   const resetToOpenAI = () => {
     setSettings(prev => ({
       ...prev,
-      ai_base_url: "https://api.openai.com/v1",
-      ai_model: "gpt-3.5-turbo"
+      ai_provider: AI_PROVIDER_OPENAI,
+      ai_base_url: OPENAI_DEFAULT_BASE_URL,
+      ai_model: OPENAI_DEFAULT_MODEL
     }));
     setCustomModel(false);
     toast.info("已重設為 OpenAI 設定");
+  };
+
+  // 套用 Google AI (Gemini) 配置
+  const applyGoogleAIConfig = () => {
+    setSettings(prev => applyProviderPreset(prev, AI_PROVIDER_GOOGLE));
+    setCustomModel(false);
+    toast.info("已套用 Google AI (Gemini) 設定");
   };
 
   // 测试AI配置
@@ -144,10 +179,12 @@ const SettingsPage = () => {
       
       if (window.electronAPI) {
         // 使用当前页面的配置进行测试，而不是已保存的配置
+        const resolved = resolveAIConfig(settings);
         const testConfig = {
-          ai_api_key: settings.ai_api_key.trim(),
-          ai_base_url: settings.ai_base_url.trim() || 'https://api.openai.com/v1',
-          ai_model: settings.ai_model.trim() || 'gpt-3.5-turbo'
+          ai_provider: resolved.ai_provider,
+          ai_api_key: resolved.ai_api_key,
+          ai_base_url: resolved.ai_base_url,
+          ai_model: resolved.ai_model
         };
         
         const result = await window.electronAPI.checkAIStatus(testConfig);
@@ -183,6 +220,9 @@ const SettingsPage = () => {
       window.electronAPI.hideSettingsWindow();
     }
   };
+
+  const currentProvider = inferAIProvider(settings);
+  const providerModels = modelsForProvider(currentProvider);
 
   if (loading) {
     return (
@@ -290,6 +330,28 @@ const SettingsPage = () => {
                  </button>
                </div>
 
+               {/* AI 服务提供商 */}
+               <div>
+                 <label htmlFor="ai-provider" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                   AI 服務提供者
+                 </label>
+                 <select
+                   id="ai-provider"
+                   value={currentProvider}
+                   onChange={(e) => handleProviderChange(e.target.value)}
+                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                 >
+                   {AI_PROVIDERS.map((provider) => (
+                     <option key={provider.value} value={provider.value}>
+                       {provider.label}
+                     </option>
+                   ))}
+                 </select>
+                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                   選擇 OpenAI 相容服務或 Google AI (Gemini)，將自動帶入對應的端點與模型清單
+                 </p>
+               </div>
+
                {/* API Key */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -300,7 +362,7 @@ const SettingsPage = () => {
                       type={showApiKey ? "text" : "password"}
                       value={settings.ai_api_key}
                       onChange={(e) => handleInputChange('ai_api_key', e.target.value)}
-                      placeholder="請輸入您的 AI API Key"
+                      placeholder={currentProvider === AI_PROVIDER_GOOGLE ? "請輸入您的 Google AI (Gemini) API Key" : "請輸入您的 AI API Key"}
                       className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                     />
                     <button
@@ -312,7 +374,9 @@ const SettingsPage = () => {
                     </button>
                   </div>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    用於 AI 文字最佳化功能的 API 金鑰
+                    {currentProvider === AI_PROVIDER_GOOGLE
+                      ? "用於 Google AI (Gemini) 文字最佳化功能的 API 金鑰（可於 Google AI Studio 取得）"
+                      : "用於 AI 文字最佳化功能的 API 金鑰"}
                   </p>
                 </div>
 
@@ -325,11 +389,13 @@ const SettingsPage = () => {
                     type="url"
                     value={settings.ai_base_url}
                     onChange={(e) => handleInputChange('ai_base_url', e.target.value)}
-                    placeholder="https://api.openai.com/v1"
+                    placeholder={defaultBaseUrlForProvider(currentProvider)}
                     className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    AI 服務的 API 端點網址，支援相容 OpenAI 的 API
+                    {currentProvider === AI_PROVIDER_GOOGLE
+                      ? `Google AI 相容端點網址（預設：${GOOGLE_AI_DEFAULT_BASE_URL}）`
+                      : "AI 服務的 API 端點網址，支援相容 OpenAI 的 API"}
                   </p>
                 </div>
 
@@ -354,6 +420,13 @@ const SettingsPage = () => {
                       >
                         OpenAI
                       </button>
+                      <button
+                        type="button"
+                        onClick={applyGoogleAIConfig}
+                        className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                      >
+                        Google AI
+                      </button>
                     </div>
                   </div>
                   
@@ -364,7 +437,12 @@ const SettingsPage = () => {
                         id="predefined-model"
                         name="model-type"
                         checked={!customModel}
-                        onChange={() => setCustomModel(false)}
+                        onChange={() => {
+                          setCustomModel(false);
+                          if (!isPredefinedModel(settings.ai_model, currentProvider)) {
+                            handleInputChange('ai_model', defaultModelForProvider(currentProvider));
+                          }
+                        }}
                         className="w-3 h-3 text-blue-600 border-gray-300 focus:ring-blue-500"
                       />
                       <label htmlFor="predefined-model" className="text-xs text-gray-700 dark:text-gray-300">
@@ -378,12 +456,11 @@ const SettingsPage = () => {
                         onChange={(e) => handleInputChange('ai_model', e.target.value)}
                         className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       >
-                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                        <option value="gpt-4">GPT-4</option>
-                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                        <option value="gpt-4o">GPT-4o</option>
-                        <option value="gpt-4o-mini">GPT-4o Mini</option>
-                        <option value="qwen3-30b-a3b-instruct-2507">Qwen3-30B (推薦)</option>
+                        {providerModels.map((modelOption) => (
+                          <option key={modelOption.value} value={modelOption.value}>
+                            {modelOption.label}
+                          </option>
+                        ))}
                       </select>
                     )}
                     
@@ -406,14 +483,18 @@ const SettingsPage = () => {
                         type="text"
                         value={settings.ai_model}
                         onChange={(e) => handleInputChange('ai_model', e.target.value)}
-                        placeholder="輸入自訂模型名稱，例如：qwen3-30b-a3b-instruct-2507"
+                        placeholder={currentProvider === AI_PROVIDER_GOOGLE
+                          ? `輸入自訂模型名稱，例如：${GOOGLE_AI_DEFAULT_MODEL}`
+                          : "輸入自訂模型名稱，例如：qwen3-30b-a3b-instruct-2507"}
                         className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
                     )}
                   </div>
                   
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    選擇用於文字最佳化的 AI 模型。推薦使用阿里雲 Qwen3 模型獲得更好的中文處理效果。
+                    {currentProvider === AI_PROVIDER_GOOGLE
+                      ? "選擇用於文字最佳化的 Google Gemini 模型，推薦使用 Gemini 2.5 Flash。"
+                      : "選擇用於文字最佳化的 AI 模型。推薦使用阿里雲 Qwen3 模型獲得更好的中文處理效果。"}
                   </p>
                 </div>
               </div>

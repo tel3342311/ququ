@@ -145,7 +145,7 @@ pnpm run dev
 ```
 
 ### 3. 設定 AI 模型
-啟動應用程式後，在 **設定頁面** 中填入您的 AI 服務商提供的 **API Key**、**Base URL** 與 **模型名稱**。支援通義千問、Kimi、智譜 AI 等相容 OpenAI 介面的模型，設定將自動儲存在本機。
+啟動應用程式後，在 **設定頁面** 中填入您的 AI 服務商提供的 **API Key**、**Base URL** 與 **模型名稱**。支援通義千問、Kimi、智譜 AI 等相容 OpenAI 介面的模型，也可選擇 **Google AI (Gemini)** 並填入 Google AI API Key，設定將自動儲存在本機。
 
 ### 4. 疑難排解
 
@@ -204,7 +204,7 @@ uv sync  # 會自動下載 Python 3.11
 - **前端**: React 19, TypeScript, Tailwind CSS, shadcn/ui, Vite
 - **桌面端**: Electron
 - **語音技術 (本機)**: FunASR (Paraformer-large, FSMN-VAD, CT-Transformer)
-- **AI 模型 (可自訂)**: 相容 OpenAI, Anthropic, 阿里雲通義千問, Kimi 等
+- **AI 模型 (可自訂)**: 相容 OpenAI, Anthropic, Google AI (Gemini), 阿里雲通義千問, Kimi 等
 - **資料庫**: better-sqlite3
 
 ## 🤝 參與貢獻
