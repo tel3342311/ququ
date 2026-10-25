@@ -13,7 +13,7 @@ const commands = {
   getSettings: 'get-settings', getAllSettings: 'get-all-settings', getSetting: 'get-setting', setSetting: 'set-setting',
   saveSetting: 'save-setting', resetSettings: 'reset-settings', importSettings: 'import-settings', exportSettings: 'export-settings',
   registerHotkey: 'register-hotkey', unregisterHotkey: 'unregister-hotkey', getCurrentHotkey: 'get-current-hotkey',
-  getHotkeyConfig: 'get-hotkey-config', setHotkeyConfig: 'set-hotkey-config',
+  getHotkeyConfig: 'get-hotkey-config', getHotkeyStatus: 'get-hotkey-status', setHotkeyConfig: 'set-hotkey-config',
   beginHotkeyCapture: 'begin-hotkey-capture', endHotkeyCapture: 'end-hotkey-capture',
   reportDictationError: 'report-dictation-error',
   invalidateDictation: 'invalidate-dictation',

@@ -89,3 +89,30 @@ export function createHotkeyCapture() {
     },
   };
 }
+
+const PERMISSION_LABELS = Object.freeze({
+  'input-monitoring': '輸入監控',
+  accessibility: '輔助使用',
+});
+
+/**
+ * Explains, in Traditional Chinese, why a hotkey will not fire while another app is
+ * focused and which macOS permission to grant. Returns null when nothing needs attention.
+ */
+export function hotkeyPermissionGuidance(status, key) {
+  if (!status) return null;
+  const permissions = status.permissions || {};
+  const missing = [];
+  if (permissions.required && permissions.inputMonitoring === false) missing.push('input-monitoring');
+  if (permissions.required && permissions.accessibility === false) missing.push('accessibility');
+  const notice = typeof status.notice === 'string' ? status.notice : '';
+  const needsHook = modifier.test(typeof key === 'string' ? key : '');
+  if (!notice && !(needsHook && missing.length)) return null;
+  const names = missing.map(item => `「${PERMISSION_LABELS[item]}」`).join('與');
+  const message = notice || `此快速鍵需要${names}權限，才能在其他應用程式中使用。請在「系統設定 > 隱私權與安全性」中允許「蛐蛐」，然後重新開啟蛐蛐。`;
+  return {
+    message,
+    actions: missing.map(item => ({ pane: item, label: `開啟${PERMISSION_LABELS[item]}設定` })),
+    canReapply: Boolean(status.desired?.key),
+  };
+}

@@ -4,6 +4,7 @@ import {
   CUSTOM_HOTKEY_PRESET,
   createHotkeyCapture,
   customPresetLabel,
+  hotkeyPermissionGuidance,
   hotkeyPresetsForPlatform,
   keyForPresetValue,
   normalizeHotkeyPlatform,
@@ -129,4 +130,50 @@ test('maps between preset selection values and config.key including custom captu
   assert.equal(presetValueForKey('MetaRight', 'windows'), CUSTOM_HOTKEY_PRESET);
   assert.equal(customPresetLabel('MetaRight', 'windows'), '自訂（MetaRight）');
   assert.equal(keyForPresetValue('MetaRight', 'ControlLeft', 'windows'), 'ControlLeft');
+});
+
+test('hotkey status command is exposed to the settings window', async () => {
+  const calls = [];
+  const api = createDesktopAPI({invoke:async (_, args) => calls.push(args), listen:async () => () => {}});
+  await api.getHotkeyStatus();
+  await api.openSystemPermissions('input-monitoring');
+  assert.deepEqual(calls.map(call => call.action), ['get-hotkey-status', 'open-system-permissions']);
+  assert.deepEqual(calls[1].args, ['input-monitoring']);
+});
+
+test('explains missing macOS permissions in Traditional Chinese for modifier hotkeys', () => {
+  const missingBoth = {permissions:{required:true, accessibility:false, inputMonitoring:false}, notice:null};
+  const guidance = hotkeyPermissionGuidance(missingBoth, 'ControlRight');
+  assert.match(guidance.message, /輸入監控/);
+  assert.match(guidance.message, /輔助使用/);
+  assert.match(guidance.message, /系統設定/);
+  assert.deepEqual(guidance.actions.map(action => action.pane), ['input-monitoring', 'accessibility']);
+  assert.deepEqual(guidance.actions.map(action => action.label), ['開啟輸入監控設定', '開啟輔助使用設定']);
+
+  const onlyInput = hotkeyPermissionGuidance({permissions:{required:true, accessibility:true, inputMonitoring:false}}, 'MetaRight');
+  assert.deepEqual(onlyInput.actions.map(action => action.pane), ['input-monitoring']);
+  assert.doesNotMatch(onlyInput.message, /輔助使用/);
+});
+
+test('permission guidance stays hidden when nothing blocks the hotkey', () => {
+  const missing = {permissions:{required:true, accessibility:false, inputMonitoring:false}};
+  assert.equal(hotkeyPermissionGuidance(null, 'ControlRight'), null);
+  // Chords and function keys use the OS hotkey API, which needs no permission.
+  assert.equal(hotkeyPermissionGuidance(missing, 'Control+Shift+Space'), null);
+  assert.equal(hotkeyPermissionGuidance(missing, 'F8'), null);
+  assert.equal(hotkeyPermissionGuidance({permissions:{required:true, accessibility:true, inputMonitoring:true}}, 'ControlRight'), null);
+  assert.equal(hotkeyPermissionGuidance({permissions:{required:false}}, 'ControlRight'), null);
+});
+
+test('startup fallback notice is always surfaced with a re-apply option', () => {
+  const status = {
+    notice: '您儲存的快速鍵目前無法使用，已暫時改用預設快速鍵。',
+    permissions:{required:true, accessibility:true, inputMonitoring:false},
+    desired:{key:'MetaRight', mode:'toggle'},
+  };
+  // Even though the active key is the fallback chord, the user must see why.
+  const guidance = hotkeyPermissionGuidance(status, 'CommandOrControl+Shift+Space');
+  assert.equal(guidance.message, status.notice);
+  assert.equal(guidance.canReapply, true);
+  assert.deepEqual(guidance.actions.map(action => action.pane), ['input-monitoring']);
 });
