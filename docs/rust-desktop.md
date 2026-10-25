@@ -15,7 +15,7 @@ The launcher also finds rustup under `~/.cargo/bin` when the terminal PATH has n
 
 Open Settings → Local speech engine to select SenseVoiceSmall INT8 or Paraformer. Download and switch loads the selected model after verifying every file's pinned length and SHA-256. Missing models never start an automatic download. SenseVoice requires about 240 MB including tokens and VAD; Paraformer with punctuation requires about 1.1 GB. Model weights live in the user data directory, outside the repository and installer.
 
-SenseVoice supports Chinese, Cantonese, English, Japanese, Korean and automatic language mode. Its punctuation setting also controls inverse text normalization. Paraformer supports Chinese and English and uses a separate punctuation model. Neither engine currently supports contextual hotwords. The converted Paraformer checkpoint differs from the legacy FunASR checkpoint, so identical transcripts are not promised.
+SenseVoice supports Chinese, Cantonese, English, Japanese, Korean and automatic language mode. Its punctuation setting also controls inverse text normalization. Paraformer supports Chinese and English and uses a separate punctuation model. Neither engine currently supports contextual hotwords. The converted Paraformer checkpoint differs from the legacy FunASR checkpoint, so identical transcripts are not promised. Recognized text, and AI-optimized text, is converted to Traditional Chinese (Taiwan, OpenCC `s2twp`) when the language is `zh` or `auto`; other languages, and text containing Japanese kana, are left unchanged (`crates/ququ-speech/src/convert.rs`).
 
 ## Build and verify
 
