@@ -76,7 +76,7 @@ export default function EntityCorrectionPopover({
             placeholder="辨識詞彙"
             aria-label="辨識詞彙"
             readOnly={isEditing}
-            className="flex-1 px-2.5 py-1.5 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="flex-1 min-w-0 px-2.5 py-1.5 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <span className="text-muted-foreground font-bold text-xs select-none">➔</span>
           <input
@@ -86,7 +86,7 @@ export default function EntityCorrectionPopover({
             onChange={(e) => setReplacement(e.target.value)}
             placeholder="正確寫法 (選填)"
             aria-label="正確寫法 (選填)"
-            className="flex-1 px-2.5 py-1.5 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="flex-1 min-w-0 px-2.5 py-1.5 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
 
