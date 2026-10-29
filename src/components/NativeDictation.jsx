@@ -21,6 +21,7 @@ export default function NativeDictation() {
     isOpen: false,
     word: '',
     initialReplacement: '',
+    isEditing: false,
     isSaving: false,
   });
 
@@ -54,11 +55,12 @@ export default function NativeDictation() {
     }
   }, [api, loadSpecialWords]);
 
-  const handleWordClick = ({ word, replacement }) => {
+  const handleWordClick = ({ word, replacement, isSpecial }) => {
     setCorrectionState({
       isOpen: true,
       word: word || '',
       initialReplacement: replacement || '',
+      isEditing: Boolean(isSpecial),
       isSaving: false,
     });
   };
@@ -68,6 +70,7 @@ export default function NativeDictation() {
       isOpen: true,
       word: '',
       initialReplacement: '',
+      isEditing: false,
       isSaving: false,
     });
   };
@@ -77,6 +80,7 @@ export default function NativeDictation() {
       isOpen: true,
       word: item.word,
       initialReplacement: item.replacement || '',
+      isEditing: true,
       isSaving: false,
     });
   };
@@ -87,17 +91,19 @@ export default function NativeDictation() {
       if (api?.saveSpecialWord) {
         await api.saveSpecialWord({
           word,
-          replacement: replacement || undefined,
+          replacement,
         });
       }
       if (replacement) {
         toast.success(`已儲存替換詞組：${word} → ${replacement}`);
         dictation.updateResultText(prev => (prev ? prev.replaceAll(word, replacement) : prev));
+      } else if (correctionState.isEditing && correctionState.initialReplacement) {
+        toast.success(`已更新為純專有詞彙：${word}`);
       } else {
         toast.success(`已新增專有詞彙：${word}`);
       }
       await loadSpecialWords();
-      setCorrectionState({ isOpen: false, word: '', initialReplacement: '', isSaving: false });
+      setCorrectionState({ isOpen: false, word: '', initialReplacement: '', isEditing: false, isSaving: false });
     } catch (err) {
       console.error('Failed to save special word:', err);
       toast.error(err?.message || '儲存專有詞彙失敗');
@@ -113,7 +119,7 @@ export default function NativeDictation() {
       toast.success(`已刪除專有詞彙：${word}`);
       setSpecialWords(prev => prev.filter(w => w.id !== id));
       if (correctionState.isOpen && correctionState.word === word) {
-        setCorrectionState({ isOpen: false, word: '', initialReplacement: '', isSaving: false });
+        setCorrectionState({ isOpen: false, word: '', initialReplacement: '', isEditing: false, isSaving: false });
       }
     } catch (err) {
       console.error('Failed to delete special word:', err);
@@ -194,6 +200,7 @@ export default function NativeDictation() {
             isOpen={correctionState.isOpen}
             word={correctionState.word}
             initialReplacement={correctionState.initialReplacement}
+            isEditing={correctionState.isEditing}
             onSave={handleSaveCorrection}
             onClose={() => setCorrectionState(prev => ({ ...prev, isOpen: false }))}
             isSaving={correctionState.isSaving}

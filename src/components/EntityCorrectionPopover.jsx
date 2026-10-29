@@ -5,6 +5,7 @@ export default function EntityCorrectionPopover({
   isOpen,
   word,
   initialReplacement = '',
+  isEditing = false,
   onSave,
   onClose,
   isSaving = false,
@@ -53,7 +54,7 @@ export default function EntityCorrectionPopover({
     >
       <div className="flex items-center justify-between text-xs font-semibold mb-2">
         <span className="text-foreground">
-          {initialReplacement ? `編輯詞組「${word}」` : `為「${word || '新詞彙'}」建立專有詞彙`}
+          {isEditing ? `編輯專有詞彙「${word}」` : `為「${word || '新詞彙'}」建立專有詞彙`}
         </span>
         <button
           type="button"
@@ -74,6 +75,7 @@ export default function EntityCorrectionPopover({
             onChange={(e) => setCurrentWord(e.target.value)}
             placeholder="辨識詞彙"
             aria-label="辨識詞彙"
+            readOnly={isEditing}
             className="flex-1 px-2.5 py-1.5 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <span className="text-muted-foreground font-bold text-xs select-none">➔</span>

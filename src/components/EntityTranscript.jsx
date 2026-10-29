@@ -11,23 +11,9 @@ export default function EntityTranscript({
     return tokenizeTranscript(text, specialWords);
   }, [text, specialWords]);
 
-  const handleMouseUp = () => {
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) return;
-    const selected = selection.toString().trim();
-    if (selected && selected.length > 0) {
-      onWordClick?.({
-        word: selected,
-        replacement: '',
-        isSpecial: false,
-      });
-    }
-  };
-
   return (
     <p
       ref={paragraphRef}
-      onMouseUp={handleMouseUp}
       className="whitespace-pre-wrap break-words mt-2 leading-relaxed select-text"
     >
       {tokens.map((token, idx) => {
