@@ -90,10 +90,11 @@ export default function SpecialWordBubble({
     const onSelectionChange = () => {
       const s = window.getSelection();
       if (!s || s.isCollapsed || !s.toString().trim()) {
-        // Only hide if the input is not currently focused
-        if (document.activeElement !== inputRef.current) {
-          hide();
+        // Do not hide if the focus or active element is inside the bubble
+        if (bubbleRef.current && (bubbleRef.current.contains(document.activeElement) || document.activeElement === inputRef.current)) {
+          return;
         }
+        hide();
       }
     };
 
@@ -183,6 +184,7 @@ export default function SpecialWordBubble({
       />
       <button
         type="button"
+        onMouseDown={e => e.stopPropagation()}
         onClick={handleSave}
         className="px-2.5 py-1 text-xs font-medium rounded bg-blue-600 hover:bg-blue-500 text-white transition-colors cursor-pointer whitespace-nowrap"
       >
