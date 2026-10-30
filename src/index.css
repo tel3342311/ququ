@@ -27,7 +27,16 @@ html.compact-dictation, .compact-dictation body, .compact-dictation #root {
 .recording-indicator.is-recording { opacity: 1; }
 .recording-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: #ef4444; }
 .recording-indicator.is-recording .recording-dot { animation: recording-breathe 1.8s ease-in-out infinite; }
-.recording-label { color: hsl(var(--foreground)); font-size: 13px; line-height: 20px; font-weight: 500; white-space: nowrap; }
+.recording-label {
+  color: hsl(var(--foreground));
+  font-family: system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'WenQuanYi Micro Hei', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 @keyframes recording-breathe {
   0%, 100% { opacity: .55; transform: scale(.9); box-shadow: 0 0 0 0 #ef444400; }
   50% { opacity: 1; transform: scale(1.12); box-shadow: 0 0 0 4px #ef444425; }
