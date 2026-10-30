@@ -20,13 +20,13 @@ function stubDesktop({ text, words }) {
     getSetting: async () => false,
     saveTranscription: async () => ({ success: true }),
     pasteText: async () => ({ success: true }),
-    onHotkeyTriggered: handler => { handlers.push(handler); return () => {}; },
+    onHotkeyTriggered: handler => { handlers.push(handler); return () => { handlers.splice(handlers.indexOf(handler), 1); }; },
   }, {
     get: (target, key) => key in target ? target[key]
       : (String(key).startsWith('on') ? () => () => {} : async () => ({ success: true })),
   });
   window.electronAPI = api;
-  window.__hotkey = action => handlers.forEach(handler => handler({}, { action }));
+  window.__hotkey = action => [...handlers].forEach(handler => handler({}, { action }));
   navigator.mediaDevices.getUserMedia = async () => ({ getTracks: () => [{ stop() {} }] });
   window.MediaRecorder = class {
     static isTypeSupported() { return false; }
@@ -70,6 +70,8 @@ async function measure(browser, baseUrl, { text, dark }) {
 
 (async () => {
   const srcRoot = path.resolve(__dirname, '../src');
+  // vite.config.js resolves its postcss path relative to the cwd, which must be src/ (see AGENTS.md).
+  process.chdir(srcRoot);
   const server = await createServer({ configFile: path.join(srcRoot, 'vite.config.js'), root: srcRoot, logLevel: 'error', server: { port: 5199, strictPort: true } });
   await server.listen();
   const channel = process.env.PLAYWRIGHT_CHANNEL || (process.platform === 'win32' ? 'msedge' : 'chrome');
