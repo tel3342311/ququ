@@ -5,6 +5,7 @@
 
 pub mod audio;
 pub mod convert;
+pub mod hub;
 pub mod models;
 #[cfg(feature = "native")]
 mod native;

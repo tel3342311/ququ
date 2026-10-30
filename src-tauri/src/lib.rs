@@ -7,7 +7,7 @@ mod logging;
 mod shortcuts;
 mod windows;
 
-use ququ_speech::{Engine, SpeechService, TranscribeOptions};
+use ququ_speech::{hub::StreamHub, native_stream::SherpaStream, Engine, SpeechService, TranscribeOptions};
 use serde_json::{json, Value};
 use std::{
     path::PathBuf,
@@ -22,6 +22,7 @@ use tauri_plugin_dialog::DialogExt;
 pub struct AppState {
     db: Mutex<database::Database>,
     speech: Arc<SpeechService>,
+    streams: Arc<StreamHub<SherpaStream>>,
     data_dir: PathBuf,
     progress: Arc<Mutex<Value>>,
     hotkeys: shortcuts::HotkeyManager,
@@ -340,6 +341,7 @@ async fn desktop_command(
         }
         "invalidate-dictation" => {
             state.indicator.invalidate_paste();
+            let _ = state.streams.cancel_all();
             Ok(json!({"success":true}))
         }
         "report-dictation-error" => {
@@ -479,6 +481,94 @@ async fn desktop_command(
                 }
                 Err(error) => Ok(json!({"success":false,"error":error})),
             }
+        }
+        "stream-status" => {
+            let speech = state.speech.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let mut data = value(speech.streaming_status().map_err(|e| e.to_string())?)?;
+                data["success"] = json!(true);
+                Ok(data)
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        }
+        "stream-download" => {
+            let speech = state.speech.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let result = speech.download_streaming_models(|event| {
+                    if let Ok(data) = serde_json::to_value(event) {
+                        let _ = app.emit("stream-download-progress", data);
+                    }
+                });
+                match result {
+                    Ok(status) => {
+                        let mut data = value(status)?;
+                        data["success"] = json!(true);
+                        Ok(data)
+                    }
+                    Err(error) => Ok(json!({"success":false,"error":error.to_string()})),
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        }
+        "stream-start" => {
+            let speech = state.speech.clone();
+            let streams = state.streams.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let started = speech.start_stream().and_then(|session| streams.start(session));
+                match started {
+                    Ok(id) => Ok(json!({"success":true,"session":id})),
+                    Err(error) => Ok(json!({"success":false,"error":error.to_string()})),
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        }
+        "stream-push" => {
+            let id = arg(&args, 0).as_u64().ok_or("Invalid stream session")?;
+            let pcm: Vec<i16> =
+                serde_json::from_value(arg(&args, 1)).map_err(|e| e.to_string())?;
+            let streams = state.streams.clone();
+            tauri::async_runtime::spawn_blocking(move || match streams.push(id, &pcm) {
+                Ok(draft) => Ok(json!({"success":true,"draft":draft})),
+                Err(error) => Ok(json!({"success":false,"error":error.to_string()})),
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        }
+        "stream-finish" => {
+            let id = arg(&args, 0).as_u64().ok_or("Invalid stream session")?;
+            let language = state.database()?.get("speech_language", json!("zh"))?;
+            let language = language.as_str().unwrap_or("zh").to_owned();
+            let speech = state.speech.clone();
+            let streams = state.streams.clone();
+            let speech_logs = state.data_dir.join("logs");
+            tauri::async_runtime::spawn_blocking(move || {
+                let outcome = streams.take(id).and_then(|(mut session, seconds)| {
+                    speech.finish_stream(&mut session, &language, seconds)
+                });
+                match outcome {
+                    Ok(result) => {
+                        let _ = logging::speech(&speech_logs, "info", "Streaming transcription completed");
+                        value(result)
+                    }
+                    Err(error) => {
+                        let _ = logging::speech(&speech_logs, "error", &error.to_string());
+                        Ok(json!({"success":false,"error":error.to_string()}))
+                    }
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        }
+        "stream-cancel" => {
+            match args.first().and_then(Value::as_u64) {
+                Some(id) => state.streams.cancel(id),
+                None => state.streams.cancel_all(),
+            }
+            .map_err(|e| e.to_string())?;
+            Ok(json!({"success":true}))
         }
         "transcribe-audio" => {
             let bytes: Vec<u8> =
@@ -634,6 +724,7 @@ pub fn run() {
             app.manage(AppState {
                 db: Mutex::new(db),
                 speech: Arc::new(speech),
+                streams: Arc::new(StreamHub::default()),
                 data_dir: data_dir.clone(),
                 progress: Arc::new(Mutex::new(json!({"progress":0}))),
                 hotkeys,
