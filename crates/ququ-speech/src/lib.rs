@@ -8,6 +8,8 @@ pub mod convert;
 pub mod models;
 #[cfg(feature = "native")]
 mod native;
+#[cfg(feature = "native")]
+mod native_stream;
 mod service;
 pub mod stream;
 
