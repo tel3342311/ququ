@@ -21,7 +21,7 @@ function stubDesktop() {
     streamStatus: async () => ({ success: true, installed: true, download_bytes: 1 }),
     streamStart: async () => { calls.push('start'); return { success: true, session: 5 }; },
     streamPush: async (id, pcm) => { calls.push(`push:${id}:${pcm.length}`); return { success: true, draft: '你好 draft' }; },
-    streamFinish: async id => { calls.push(`finish:${id}`); return { success: true, text: '你好，最終結果。', raw_text: '你好最終結果', duration: 1 }; },
+    streamFinish: async id => { calls.push(`finish:${id}`); return { success: true, text: '你好，最終結果。', raw_text: '你好最終結果', first_pass: '你好 draft 最終', duration: 1 }; },
     streamCancel: async id => { calls.push(`cancel:${id}`); return { success: true }; },
     transcribeAudio: async () => { calls.push('OFFLINE'); return { success: false }; },
     saveTranscription: async data => { calls.push(`save:${data.text}`); return { success: true }; },
@@ -71,6 +71,12 @@ function stubDesktop() {
     await page.getByRole('region', { name: '最近一次聽寫與專有詞彙' }).waitFor();
     assert.match(await page.locator('section[aria-label="最近一次聽寫與專有詞彙"]').innerText(), /你好，最終結果。/);
     assert.equal(await page.getByLabel('即時辨識草稿').count(), 0, 'draft panel must disappear after stopping');
+    // The streaming text that the second pass replaced stays available, collapsed.
+    const first = page.getByLabel('即時串流草稿');
+    await first.waitFor();
+    assert.equal(await first.evaluate(el => el.open), false, 'first pass must start collapsed');
+    await first.locator('summary').click();
+    assert.match(await first.innerText(), /你好 draft 最終/);
     const calls = await page.evaluate(() => window.__calls);
     assert.ok(!calls.includes('OFFLINE'), `offline path must not run: ${calls}`);
     assert.ok(calls.includes('paste:你好，最終結果。'), `final text must be pasted: ${calls}`);

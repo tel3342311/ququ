@@ -41,12 +41,12 @@ export async function finishDictation(api,audio,{isCurrent=()=>true,onPhase=()=>
   try {
     const pasted=await report.measure('pasteMs',()=>api.pasteText(finalText));
     if(pasted?.success===false)throw new Error(pasted.error||'無法貼上');
-    outcome=1;return {text:finalText,rawText:result.raw_text??recognized,pasted:true};
+    outcome=1;return {text:finalText,rawText:result.raw_text??recognized,firstPass:result.first_pass,pasted:true};
   } catch {
     if(!isCurrent())return cancelled();
     const copied=await report.measure('pasteMs',()=>api.copyText(finalText));
     if(copied?.success===false)throw new Error(copied.error||'無法複製文字，辨識結果已儲存至歷史記錄。');
-    outcome=1;return {text:finalText,rawText:result.raw_text??recognized,pasted:false,warning:'無法自動貼上，文字已儲存並複製到剪貼簿。'};
+    outcome=1;return {text:finalText,rawText:result.raw_text??recognized,firstPass:result.first_pass,pasted:false,warning:'無法自動貼上，文字已儲存並複製到剪貼簿。'};
   }
   } finally {report.finish(outcome);}
 }

@@ -92,5 +92,20 @@ test('a streaming result flows through the same special words, save and paste st
   };
   const outcome=await finishDictation(api,null,{recognize:async()=>({success:true,text:'你好蛐蛐',raw_text:'你好蛐蛐',duration:2})});
   assert.equal(outcome.text,'你好QuQu');
+  assert.equal(outcome.firstPass,undefined,'single-pass results carry no first pass');
   assert.deepEqual(calls,[['save','你好QuQu',0],['paste','你好QuQu']]);
+});
+
+test('a second-pass result keeps the streaming text as firstPass without saving or pasting it',async()=>{
+  const{finishDictation}=await import('./dictation.mjs');
+  const calls=[];
+  const api={
+    getSpecialWords:async()=>[],getSetting:async()=>false,
+    saveTranscription:async data=>{calls.push(['save',data.text,data.raw_text]);},
+    pasteText:async text=>{calls.push(['paste',text]);return{success:true};},
+  };
+  const outcome=await finishDictation(api,null,{recognize:async()=>({success:true,text:'你好，世界。',raw_text:'你好世界',first_pass:'你好 世界',duration:2})});
+  assert.equal(outcome.text,'你好，世界。');
+  assert.equal(outcome.firstPass,'你好 世界');
+  assert.deepEqual(calls,[['save','你好，世界。','你好世界'],['paste','你好，世界。']]);
 });

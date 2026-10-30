@@ -203,6 +203,13 @@ export default function NativeDictation() {
                 paragraphRef={sentenceRef}
               />
 
+              {result.firstPass && result.firstPass !== result.text && (
+                <details className="mt-2.5 text-xs text-muted-foreground border-t border-border/30 pt-2" aria-label="即時串流草稿">
+                  <summary className="cursor-pointer hover:text-foreground">即時串流草稿（定稿前）</summary>
+                  <p className="whitespace-pre-wrap mt-1 text-xs">{result.firstPass}</p>
+                </details>
+              )}
+
               {result.rawText && result.rawText !== result.text && (
                 <details className="mt-2.5 text-xs text-muted-foreground border-t border-border/30 pt-2">
                   <summary className="cursor-pointer hover:text-foreground">原始辨識文字</summary>
