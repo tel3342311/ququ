@@ -166,6 +166,10 @@ impl Database {
             .and_then(Value::as_str)
             .map(str::trim)
             .filter(|s| !s.is_empty());
+        let clear_replacement = data
+            .get("replacement")
+            .and_then(Value::as_str)
+            .is_some_and(|s| s.trim().is_empty());
 
         let existing: Option<i64> = self
             .0
@@ -178,8 +182,8 @@ impl Database {
         if let Some(id) = existing {
             self.0
                 .execute(
-                    "UPDATE special_words SET replacement = COALESCE(?, replacement), created_at = CURRENT_TIMESTAMP WHERE id = ?",
-                    params![replacement, id],
+                    "UPDATE special_words SET replacement = CASE WHEN ? THEN NULL ELSE COALESCE(?, replacement) END, created_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    params![clear_replacement, replacement, id],
                 )
                 .map_err(|e| e.to_string())?;
             let stored: Option<String> = self
@@ -305,6 +309,20 @@ mod tests {
                 .unwrap()["replacement"],
             "Kubernetes"
         );
+
+        // An explicit empty replacement turns the pair into a plain word
+        let cleared = db
+            .save_special_word(&json!({"word": "庫伯內提斯", "replacement": "  "}))
+            .unwrap();
+        assert!(cleared["replacement"].is_null());
+        let list = db.get_special_words().unwrap();
+        assert!(list
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|w| w["word"] == "庫伯內提斯")
+            .unwrap()["replacement"]
+            .is_null());
 
         // Delete special word by id
         let id = saved_pair["id"].as_i64().unwrap();
