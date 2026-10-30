@@ -28,20 +28,26 @@ pub fn place(anchor: (i32, i32), area: WorkArea, scale: f64) -> (i32, i32) {
 }
 
 /// Translates Cocoa mouseLocation (points, origin bottom-left of primary screen)
-/// to Quartz logical coordinates (points, origin top-left of primary screen)
-/// and physical pixel coordinates for the target monitor.
-pub fn macos_cursor_to_anchor(
-    mouse_cocoa: (f64, f64),
-    primary_height: f64,
+/// to Quartz logical points (origin top-left of primary screen).
+pub fn macos_cursor_to_logical(mouse_cocoa: (f64, f64), primary_height: f64) -> (f64, f64) {
+    (mouse_cocoa.0, primary_height - mouse_cocoa.1)
+}
+
+/// Places a logical point inside a monitor's physical space: offset from the
+/// monitor's own point origin, scaled by that monitor, then added to its physical position.
+pub fn macos_logical_to_anchor(
+    logical: (f64, f64),
+    monitor_position: (i32, i32),
     scale: f64,
-) -> ((f64, f64), (i32, i32)) {
-    let logical_x = mouse_cocoa.0;
-    let logical_y = primary_height - mouse_cocoa.1;
-    let anchor = (
-        (logical_x * scale).round() as i32,
-        (logical_y * scale).round() as i32,
+) -> (i32, i32) {
+    let origin = (
+        f64::from(monitor_position.0) / scale,
+        f64::from(monitor_position.1) / scale,
     );
-    ((logical_x, logical_y), anchor)
+    (
+        monitor_position.0 + ((logical.0 - origin.0) * scale).round() as i32,
+        monitor_position.1 + ((logical.1 - origin.1) * scale).round() as i32,
+    )
 }
 
 #[cfg(test)]
@@ -50,15 +56,10 @@ mod tests {
 
     #[test]
     fn macos_retina_cursor_to_anchor_preserves_unskewed_physical_placement() {
-        let primary_height = 1080.0;
-        let scale = 2.0;
-        // Mouse near center of screen (logical point x=960, y=540 from bottom in Cocoa):
-        let ((log_x, log_y), anchor) =
-            macos_cursor_to_anchor((960.0, 540.0), primary_height, scale);
-        assert_eq!(log_x, 960.0);
-        assert_eq!(log_y, 540.0);
+        let logical = macos_cursor_to_logical((960.0, 540.0), 1080.0);
+        assert_eq!(logical, (960.0, 540.0));
+        let anchor = macos_logical_to_anchor(logical, (0, 0), 2.0);
         assert_eq!(anchor, (1920, 1080));
-
         let (x, y) = place(
             anchor,
             WorkArea {
@@ -67,29 +68,38 @@ mod tests {
                 width: 3840,
                 height: 2160,
             },
-            scale,
+            2.0,
         );
-        // On Retina 2x, gap is 24px (12pt * 2), width is 320px, height is 64px.
-        // It should place adjacent to the anchor without clamping to the bottom.
-        assert_eq!(x, 1920 + 24);
-        assert_eq!(y, 1080 + 24);
+        assert_eq!((x, y), (1920 + 24, 1080 + 24));
     }
 
     #[test]
     fn macos_retina_cursor_near_top_and_bottom_coordinates() {
-        let primary_height = 1080.0;
-        let scale = 2.0;
-        // Near top of screen (Cocoa y=1000 from bottom -> 80 from top):
-        let ((_, log_y_top), anchor_top) =
-            macos_cursor_to_anchor((500.0, 1000.0), primary_height, scale);
-        assert_eq!(log_y_top, 80.0);
-        assert_eq!(anchor_top.1, 160);
+        let top = macos_cursor_to_logical((500.0, 1000.0), 1080.0);
+        assert_eq!(top.1, 80.0);
+        assert_eq!(macos_logical_to_anchor(top, (0, 0), 2.0).1, 160);
+        let bottom = macos_cursor_to_logical((500.0, 50.0), 1080.0);
+        assert_eq!(bottom.1, 1030.0);
+        assert_eq!(macos_logical_to_anchor(bottom, (0, 0), 2.0).1, 2060);
+    }
 
-        // Near bottom of screen (Cocoa y=50 from bottom -> 1030 from top):
-        let ((_, log_y_bot), anchor_bot) =
-            macos_cursor_to_anchor((500.0, 50.0), primary_height, scale);
-        assert_eq!(log_y_bot, 1030.0);
-        assert_eq!(anchor_bot.1, 2060);
+    #[test]
+    fn macos_mixed_dpi_secondary_monitor_anchor_stays_in_work_area() {
+        let anchor = macos_logical_to_anchor((1500.0, 100.0), (1440, 0), 1.0);
+        assert_eq!(anchor, (1500, 100));
+        let anchor = macos_logical_to_anchor((2000.0, 100.0), (3840, 0), 2.0);
+        assert_eq!(anchor, (4000, 200));
+        let (x, y) = place(
+            anchor,
+            WorkArea {
+                left: 3840,
+                top: 0,
+                width: 3840,
+                height: 2160,
+            },
+            2.0,
+        );
+        assert_eq!((x, y), (4000 + 24, 200 + 24));
     }
     #[test]
     fn keeps_indicator_inside_negative_coordinate_monitor() {

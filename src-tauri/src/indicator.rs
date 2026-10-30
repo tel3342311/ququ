@@ -71,15 +71,16 @@ fn sample_position(window: &tauri::WebviewWindow) -> Result<((i32, i32), tauri::
         .map_err(|e| e.to_string())?
         .ok_or("No monitor available")?;
     let primary_height = primary.size().height as f64 / primary.scale_factor();
-    let ((logical_x, logical_y), _) =
-        geometry::macos_cursor_to_anchor((mouse.x, mouse.y), primary_height, 1.0);
+    let (logical_x, logical_y) =
+        geometry::macos_cursor_to_logical((mouse.x, mouse.y), primary_height);
     let monitor = window
         .monitor_from_point(logical_x, logical_y)
         .map_err(|e| e.to_string())?
         .unwrap_or(primary);
     let scale = monitor.scale_factor();
-    let (_, anchor) =
-        geometry::macos_cursor_to_anchor((mouse.x, mouse.y), primary_height, scale);
+    let origin = monitor.position();
+    let anchor =
+        geometry::macos_logical_to_anchor((logical_x, logical_y), (origin.x, origin.y), scale);
     Ok((anchor, monitor))
 }
 
