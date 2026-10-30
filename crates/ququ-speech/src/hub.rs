@@ -17,7 +17,20 @@ pub const MAX_SESSION_SAMPLES: u64 = 16_000 * 60 * 10;
 struct Active<B: StreamBackend> {
     id: u64,
     session: StreamSession<B>,
-    samples: u64,
+    /// Every sample pushed so far, kept so a second pass can re-decode the utterance.
+    pcm: Vec<i16>,
+}
+
+/// A session handed back for finishing, with the audio it heard.
+pub struct Finished<B: StreamBackend> {
+    pub session: StreamSession<B>,
+    pub pcm: Vec<i16>,
+}
+
+impl<B: StreamBackend> Finished<B> {
+    pub fn seconds(&self) -> f64 {
+        self.pcm.len() as f64 / 16_000.0
+    }
 }
 
 pub struct StreamHub<B: StreamBackend> {
@@ -48,7 +61,7 @@ impl<B: StreamBackend> StreamHub<B> {
         guard.1 = Some(Active {
             id,
             session,
-            samples: 0,
+            pcm: Vec::new(),
         });
         Ok(id)
     }
@@ -63,13 +76,13 @@ impl<B: StreamBackend> StreamHub<B> {
             Some(active) if active.id == id => active,
             _ => return Err(SpeechError::Unsupported("stale stream session".into())),
         };
-        active.samples += pcm.len() as u64;
-        if active.samples > MAX_SESSION_SAMPLES {
+        if (active.pcm.len() + pcm.len()) as u64 > MAX_SESSION_SAMPLES {
             if let Some(mut over) = guard.1.take() {
                 over.session.cancel();
             }
             return Err(SpeechError::Audio("stream session is too long".into()));
         }
+        active.pcm.extend_from_slice(pcm);
         let samples: Vec<f32> = pcm.iter().map(|&s| s as f32 / 32768.0).collect();
         let result = active
             .session
@@ -82,13 +95,14 @@ impl<B: StreamBackend> StreamHub<B> {
     }
 
     /// Take the session out for finishing. The hub is empty afterwards, so the
-    /// same id cannot be finished twice. Returns the session and its duration.
-    pub fn take(&self, id: u64) -> Result<(StreamSession<B>, f64)> {
+    /// same id cannot be finished twice.
+    pub fn take(&self, id: u64) -> Result<Finished<B>> {
         let mut guard = self.lock()?;
         match guard.1.take() {
-            Some(active) if active.id == id => {
-                Ok((active.session, active.samples as f64 / 16_000.0))
-            }
+            Some(active) if active.id == id => Ok(Finished {
+                session: active.session,
+                pcm: active.pcm,
+            }),
             other => {
                 guard.1 = other;
                 Err(SpeechError::Unsupported("stale stream session".into()))
@@ -140,9 +154,19 @@ mod tests {
         let hub = StreamHub::default();
         let id = hub.start(session()).unwrap();
         assert_eq!(hub.push(id, &[0; 8000]).unwrap().as_deref(), Some("8000 samples"));
-        let (mut taken, seconds) = hub.take(id).unwrap();
-        assert_eq!(seconds, 0.5);
-        assert_eq!(taken.finish().unwrap(), "final 8000");
+        let mut taken = hub.take(id).unwrap();
+        assert_eq!(taken.seconds(), 0.5);
+        assert_eq!(taken.pcm.len(), 8000);
+        assert_eq!(taken.session.finish().unwrap(), "final 8000");
+    }
+
+    #[test]
+    fn the_audio_is_kept_in_order_for_a_second_pass() {
+        let hub = StreamHub::default();
+        let id = hub.start(session()).unwrap();
+        hub.push(id, &[1, 2, 3]).unwrap();
+        hub.push(id, &[4, 5]).unwrap();
+        assert_eq!(hub.take(id).unwrap().pcm, vec![1, 2, 3, 4, 5]);
     }
 
     #[test]

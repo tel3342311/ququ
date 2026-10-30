@@ -57,6 +57,22 @@ fn selected(state: &AppState) -> Result<Engine, String> {
             .unwrap_or("sensevoice"),
     )
 }
+/// The speech language when the SenseVoice second pass is switched on (default)
+/// and its models are installed; otherwise None and streaming text is final.
+fn second_pass_language(state: &AppState, speech: &SpeechService) -> Result<Option<String>, String> {
+    let db = state.database()?;
+    if !db.get("streaming_second_pass", json!(true))?.as_bool().unwrap_or(true) {
+        return Ok(None);
+    }
+    let ready = speech.streaming_status().map_err(|e| e.to_string())?.second_pass_ready;
+    Ok(ready.then(|| {
+        db.get("speech_language", json!("zh"))
+            .ok()
+            .and_then(|v| v.as_str().map(str::to_owned))
+            .unwrap_or_else(|| "zh".into())
+    }))
+}
+
 fn value<T: serde::Serialize>(data: T) -> Result<Value, String> {
     serde_json::to_value(data).map_err(|e| e.to_string())
 }
@@ -515,10 +531,20 @@ async fn desktop_command(
         "stream-start" => {
             let speech = state.speech.clone();
             let streams = state.streams.clone();
+            let warm = second_pass_language(&state, &speech)?;
             tauri::async_runtime::spawn_blocking(move || {
                 let started = speech.start_stream().and_then(|session| streams.start(session));
                 match started {
-                    Ok(id) => Ok(json!({"success":true,"session":id})),
+                    Ok(id) => {
+                        if let Some(language) = warm {
+                            // Hide the SenseVoice load behind the recording itself.
+                            let speech = speech.clone();
+                            std::thread::spawn(move || {
+                                let _ = speech.warm_second_pass(&language);
+                            });
+                        }
+                        Ok(json!({"success":true,"session":id}))
+                    }
                     Err(error) => Ok(json!({"success":false,"error":error.to_string()})),
                 }
             })
@@ -543,10 +569,16 @@ async fn desktop_command(
             let language = language.as_str().unwrap_or("zh").to_owned();
             let speech = state.speech.clone();
             let streams = state.streams.clone();
+            let two_pass = second_pass_language(&state, &speech)?.is_some();
             let speech_logs = state.data_dir.join("logs");
             tauri::async_runtime::spawn_blocking(move || {
-                let outcome = streams.take(id).and_then(|(mut session, seconds)| {
-                    speech.finish_stream(&mut session, &language, seconds)
+                let outcome = streams.take(id).and_then(|mut finished| {
+                    if two_pass {
+                        speech.finish_stream_two_pass(&mut finished.session, &finished.pcm, &language)
+                    } else {
+                        let seconds = finished.seconds();
+                        speech.finish_stream(&mut finished.session, &language, seconds)
+                    }
                 });
                 match outcome {
                     Ok(result) => {

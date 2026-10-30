@@ -82,6 +82,8 @@ const _: &str = DIR;
 #[derive(Debug, Clone, Serialize)]
 pub struct StreamModelStatus {
     pub installed: bool,
+    /// SenseVoice and VAD are installed, so a second pass can finalize the text.
+    pub second_pass_ready: bool,
     pub missing: Vec<String>,
     pub download_bytes: u64,
 }
@@ -105,6 +107,7 @@ pub fn status(root: &Path) -> Result<StreamModelStatus> {
     }
     Ok(StreamModelStatus {
         installed: missing.is_empty(),
+        second_pass_ready: false,
         missing,
         download_bytes: STREAMING_PARAFORMER.bytes,
     })
