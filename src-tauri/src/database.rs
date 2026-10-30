@@ -247,7 +247,7 @@ impl Database {
         serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())
     }
     pub fn import_special_words(&self, content: &str) -> Result<Value, String> {
-        let trimmed = content.trim_start();
+        let trimmed = content.trim_start_matches('\u{feff}').trim_start();
         struct Entry {
             word: String,
             replacement: Option<String>,
@@ -257,102 +257,74 @@ impl Database {
         let mut entries = Vec::new();
         let mut invalid = 0usize;
 
-        if trimmed.starts_with('{') || trimmed.starts_with('[') {
-            let root: Value = serde_json::from_str(trimmed)
-                .map_err(|e| format!("無效的 JSON 格式: {e}"))?;
-            let obj = root
-                .as_object()
-                .ok_or_else(|| "詞彙檔案格式錯誤：根層級必須為物件".to_string())?;
-            let version = match obj.get("version") {
-                Some(Value::Number(n)) => n
-                    .as_i64()
-                    .ok_or_else(|| "詞彙檔案格式錯誤：版本號必須為整數".to_string())?,
-                Some(_) => return Err("詞彙檔案格式錯誤：版本號必須為整數".to_string()),
-                None => return Err("詞彙檔案格式錯誤：缺少版本號".to_string()),
-            };
-            if version > 1 {
-                return Err(format!("不支援的檔案版本：版本 {version}（目前僅支援版本 1）"));
-            }
-            if version < 1 {
-                return Err("無效的檔案版本：版本號必須大於或等於 1".to_string());
-            }
+        if !trimmed.starts_with('{') {
+            return Err("無效的詞彙檔案：必須為匯出的 JSON 檔案".to_string());
+        }
+        {
+        let root: Value = serde_json::from_str(trimmed)
+            .map_err(|e| format!("無效的 JSON 格式: {e}"))?;
+        let obj = root
+            .as_object()
+            .ok_or_else(|| "詞彙檔案格式錯誤：根層級必須為物件".to_string())?;
+        let version = match obj.get("version") {
+            Some(Value::Number(n)) => n
+                .as_i64()
+                .ok_or_else(|| "詞彙檔案格式錯誤：版本號必須為整數".to_string())?,
+            Some(_) => return Err("詞彙檔案格式錯誤：版本號必須為整數".to_string()),
+            None => return Err("詞彙檔案格式錯誤：缺少版本號".to_string()),
+        };
+        if version > 1 {
+            return Err(format!("不支援的檔案版本：版本 {version}（目前僅支援版本 1）"));
+        }
+        if version < 1 {
+            return Err("無效的檔案版本：版本號必須大於或等於 1".to_string());
+        }
 
-            let words = match obj.get("words") {
-                Some(Value::Array(arr)) => arr,
-                _ => return Err("詞彙檔案格式錯誤：words 欄位必須為陣列".to_string()),
-            };
+        let words = match obj.get("words") {
+            Some(Value::Array(arr)) => arr,
+            _ => return Err("詞彙檔案格式錯誤：words 欄位必須為陣列".to_string()),
+        };
 
-            for item in words {
-                if let Some(item_obj) = item.as_object() {
-                    let word_str = match item_obj.get("word").and_then(Value::as_str) {
-                        Some(w) if !w.trim().is_empty() => w.trim().to_string(),
-                        _ => {
-                            invalid += 1;
-                            continue;
-                        }
-                    };
-                    let replacement = match item_obj.get("replacement") {
-                        Some(Value::String(s)) => {
-                            let s_trim = s.trim();
-                            if s_trim.is_empty() {
-                                None
-                            } else {
-                                Some(s_trim.to_string())
-                            }
-                        }
-                        Some(Value::Null) | None => None,
-                        Some(_) => {
-                            invalid += 1;
-                            continue;
-                        }
-                    };
-                    let created_at = item_obj
-                        .get("created_at")
-                        .and_then(Value::as_str)
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                        .map(ToString::to_string);
-
-                    entries.push(Entry {
-                        word: word_str,
-                        replacement,
-                        created_at,
-                    });
-                } else {
-                    invalid += 1;
-                }
-            }
-        } else {
-            for raw_line in content.lines() {
-                let line = raw_line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-                if let Some((heard, correct)) = line.split_once("=>") {
-                    let heard = heard.trim();
-                    let correct = correct.trim();
-                    if heard.is_empty() {
+        for item in words {
+            if let Some(item_obj) = item.as_object() {
+                let word_str = match item_obj.get("word").and_then(Value::as_str) {
+                    Some(w) if !w.trim().is_empty() => w.trim().to_string(),
+                    _ => {
                         invalid += 1;
                         continue;
                     }
-                    let replacement = if correct.is_empty() {
-                        None
-                    } else {
-                        Some(correct.to_string())
-                    };
-                    entries.push(Entry {
-                        word: heard.to_string(),
-                        replacement,
-                        created_at: None,
-                    });
-                } else {
-                    entries.push(Entry {
-                        word: line.to_string(),
-                        replacement: None,
-                        created_at: None,
-                    });
-                }
+                };
+                let replacement = match item_obj.get("replacement") {
+                    Some(Value::String(s)) => {
+                        let s_trim = s.trim();
+                        if s_trim.is_empty() {
+                            None
+                        } else {
+                            Some(s_trim.to_string())
+                        }
+                    }
+                    Some(Value::Null) | None => None,
+                    Some(_) => {
+                        invalid += 1;
+                        continue;
+                    }
+                };
+                let created_at = item_obj
+                    .get("created_at")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(ToString::to_string);
+
+                entries.push(Entry {
+                    word: word_str,
+                    replacement,
+                    created_at,
+                });
+            } else {
+                invalid += 1;
             }
+        }
         }
 
         use std::collections::HashSet;
@@ -577,39 +549,22 @@ mod tests {
         assert!(plain["replacement"].is_null());
     }
     #[test]
-    fn special_words_import_plain_text() {
+    fn special_words_import_rejects_non_json_and_strips_bom() {
         let dir = tempfile::tempdir().unwrap();
-        let db = Database::open(&dir.path().join("test_text_import.db")).unwrap();
-        let text = r#"
-# 專有詞彙設定檔
-# 註解應該被略過
+        let db = Database::open(&dir.path().join("test_plain.db")).unwrap();
 
-庫伯內提斯 => Kubernetes
-蛐蛐
-   AI   =>   人工智慧   
+        assert!(db.import_special_words("庫伯內提斯 => Kubernetes\n蛐蛐").is_err());
+        assert!(db.import_special_words("[{\"word\":\"test\"}]").is_err());
+        assert_eq!(db.get_special_words().unwrap().as_array().unwrap().len(), 0);
 
-# 格式錯誤的項目
-=> 沒有聽到的詞
-
-# 空白行以上
-"#;
-        let summary = db.import_special_words(text).unwrap();
-        assert_eq!(summary["added"], 3);
-        assert_eq!(summary["skipped"], 0);
-        assert_eq!(summary["invalid"], 1);
-
+        let bom_json = format!(
+            "\u{feff}{}",
+            json!({"version": 1, "words": [{"word": "蛐蛐"}]})
+        );
+        let summary = db.import_special_words(&bom_json).unwrap();
+        assert_eq!(summary["added"], 1);
         let list = db.get_special_words().unwrap();
-        let arr = list.as_array().unwrap();
-        assert_eq!(arr.len(), 3);
-        assert_eq!(
-            arr.iter().find(|w| w["word"] == "庫伯內提斯").unwrap()["replacement"],
-            "Kubernetes"
-        );
-        assert_eq!(
-            arr.iter().find(|w| w["word"] == "AI").unwrap()["replacement"],
-            "人工智慧"
-        );
-        assert!(arr.iter().find(|w| w["word"] == "蛐蛐").unwrap()["replacement"].is_null());
+        assert_eq!(list.as_array().unwrap()[0]["word"], "蛐蛐");
     }
     #[test]
     fn special_words_deduplication_and_conflicts() {

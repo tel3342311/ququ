@@ -153,7 +153,7 @@ export default function SpecialWordsSettings() {
             onClick={handleImport}
             disabled={importing || loading}
             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors disabled:opacity-50 cursor-pointer"
-            title="匯入詞彙（支援 JSON 與純文字格式）"
+            title="匯入詞彙（JSON 格式）"
             aria-label="匯入詞彙"
           >
             {importing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
