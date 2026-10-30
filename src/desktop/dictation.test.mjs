@@ -79,3 +79,18 @@ test('applies special words replacement pairs to recognized and pasted text',asy
   assert.equal(calls.find(([name])=>name==='save')[1].text,'我昨天跟王小明討論了Kubernetes部署。');
   assert.deepEqual(calls.find(([name])=>name==='paste'),['paste','我昨天跟王小明討論了Kubernetes部署。']);
 });
+
+test('a streaming result flows through the same special words, save and paste steps',async()=>{
+  const{finishDictation}=await import('./dictation.mjs');
+  const calls=[];
+  const api={
+    transcribeAudio:async()=>{throw Error('offline path must not run');},
+    getSpecialWords:async()=>[{word:'蛐蛐',replacement:'QuQu'}],
+    getSetting:async()=>false,
+    saveTranscription:async data=>{calls.push(['save',data.text,data.file_size]);},
+    pasteText:async text=>{calls.push(['paste',text]);return{success:true};},
+  };
+  const outcome=await finishDictation(api,null,{recognize:async()=>({success:true,text:'你好蛐蛐',raw_text:'你好蛐蛐',duration:2})});
+  assert.equal(outcome.text,'你好QuQu');
+  assert.deepEqual(calls,[['save','你好QuQu',0],['paste','你好QuQu']]);
+});

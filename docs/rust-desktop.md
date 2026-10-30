@@ -70,3 +70,22 @@ Special words are stored in the `special_words` table of the existing SQLite dat
 See [Local ASR baseline](performance-baseline.md) and its recorded JSON for the reproducible 30-run SenseVoice benchmark. On the measured i7-1370P computer, a 5.592-second fixture produced warm p50 606.86 ms and p95 684.96 ms. These are local recognition pipeline times, not stop-to-paste or a Classic/Compact A/B result. Verification and process-cold model construction are reported separately.
 
 Runtime `dictation-performance` log records contain numeric phase durations and outcome codes only. The start timestamp is captured when the controller receives stop intent, including MediaRecorder finalization and audio preparation before ASR. Preparation errors/cancellation also produce one report. Cloud AI, history writes and paste are timed separately so a subsequent corpus/desktop benchmark can identify the actual bottleneck without logging transcript contents.
+
+
+## Streaming dictation (optional)
+
+Settings → 即時串流辨識 adds a second, optional local engine: streaming Paraformer (Chinese/English, sherpa-onnx `OnlineRecognizer`, int8). While recording, a revisable draft is shown in the Classic window; stopping commits only the engine's final text, which then goes through the same special words, AI optimization, history and paste steps as an offline result. The offline engines are unchanged and remain the default.
+
+**Model package.** The publisher ships these weights only inside one archive, so the download is about 1 GB for roughly 237 MB of installed files (`encoder.int8.onnx`, `decoder.int8.onnx`, `tokens.txt`). The archive is pinned by length and SHA-256, only those three exact member names are extracted, each member is hashed, and nothing is installed until the archive and every member verify (`crates/ququ-speech/src/stream_models.rs`). The release tag is mutable, so the hash, not the tag, is the authority. Final punctuation uses the existing CT-Transformer punctuation model when it is installed (download Paraformer once to get it); otherwise the text is unpunctuated.
+
+**Session contract.** Drafts are full replacement snapshots, never appended text. Only `finish()` returns text to commit; cancelling, failing or timing out never promotes a draft (`stream.rs`). `StreamHub` keeps one active session, rejects stale ids, and bounds a chunk to 2 s and a session to 10 min (`hub.rs`). Audio is captured as 16 kHz mono PCM through an `AudioWorklet` and sent in about 200 ms chunks (`src/desktop/pcm.mjs`, `streaming-session.mjs`).
+
+**Not done / known limits.** Text is shown only in QuQu's own window; it is not typed into the target application while you speak, because a draft can be revised. Numbers are not normalized (no ITN) and English words are space-separated in the draft. Accuracy against the offline engines has not been benchmarked beyond a single sample. Microphone capture, WebKit `AudioWorklet` behavior on macOS and real-device latency need validation on the target platforms.
+
+```bash
+cargo test --manifest-path crates/ququ-speech/Cargo.toml --lib
+STREAM_ARCHIVE=/path/to/sherpa-onnx-streaming-paraformer-bilingual-zh-en.tar.bz2 \
+  cargo test --manifest-path crates/ququ-speech/Cargo.toml --release --lib real_archive -- --ignored
+npm run test:desktop
+npm run test:streaming-ui
+```

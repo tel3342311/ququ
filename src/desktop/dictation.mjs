@@ -1,13 +1,14 @@
 import { createPerformanceReport } from './performance.mjs';
 import { applySpecialWords } from './special-words.mjs';
 
-export async function finishDictation(api,audio,{isCurrent=()=>true,onPhase=()=>{},onMetrics,startedAt,now,report:sharedReport}={}) {
+// `recognize` replaces the offline transcribe call, e.g. the final result of a streaming session.
+export async function finishDictation(api,audio,{isCurrent=()=>true,onPhase=()=>{},onMetrics,startedAt,now,report:sharedReport,recognize}={}) {
   const report=sharedReport||createPerformanceReport({onMetrics,startedAt,now});
   let outcome=3;
   const cancelled=()=>{outcome=4;return {cancelled:true};};
   try {
   onPhase('processing');
-  const result=await report.measure('asrMs',()=>api.transcribeAudio(audio));
+  const result=await report.measure('asrMs',()=>recognize?recognize():api.transcribeAudio(audio));
   if(!isCurrent())return cancelled();
   if(!result?.success)throw new Error(result?.error||'語音辨識失敗');
   const recognized=result.text?.trim()||'';
@@ -35,7 +36,7 @@ export async function finishDictation(api,audio,{isCurrent=()=>true,onPhase=()=>
   }
   if(!isCurrent())return cancelled();
   await report.measure('saveMs',()=>api.saveTranscription({text:finalText,raw_text:result.raw_text??recognized,processed_text:processedText,
-    confidence:result.confidence||0,language:result.language||'zh-CN',duration:result.duration||0,file_size:audio.byteLength??audio.length}));
+    confidence:result.confidence||0,language:result.language||'zh-CN',duration:result.duration||0,file_size:audio?.byteLength??audio?.length??0}));
   if(!isCurrent())return cancelled();
   try {
     const pasted=await report.measure('pasteMs',()=>api.pasteText(finalText));

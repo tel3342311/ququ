@@ -7,6 +7,7 @@ import { Settings, Save, Eye, EyeOff, X, Loader2, TestTube, CheckCircle, XCircle
 import { usePermissions } from "./hooks/usePermissions";
 import PermissionCard from "./components/ui/permission-card";
 import NativeSpeechSettings from './components/NativeSpeechSettings';
+import StreamingSpeechSettings from './components/StreamingSpeechSettings';
 import HotkeySettings from './components/HotkeySettings';
 import InterfaceSettings from './components/InterfaceSettings';
 import SpecialWordsSettings from './components/SpecialWordsSettings';
@@ -258,6 +259,7 @@ const SettingsPage = () => {
         <div className="max-w-2xl mx-auto p-6 pb-8">
           <div className="mb-6"><SpecialWordsSettings /></div>
           <div className="mb-6"><NativeSpeechSettings /></div>
+          <div className="mb-6"><StreamingSpeechSettings /></div>
           <div className="mb-6"><HotkeySettings /></div>
           {window.electronAPI?.runtime==='tauri'&&<div className="mb-6"><InterfaceSettings /></div>}
           {/* 权限管理部分 */}
