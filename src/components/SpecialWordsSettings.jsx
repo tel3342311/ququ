@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BookA, Trash2, Plus, Loader2 } from 'lucide-react';
+import { BookA, Trash2, Plus, Loader2, Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SpecialWordsSettings() {
@@ -8,6 +8,8 @@ export default function SpecialWordsSettings() {
   const [newWord, setNewWord] = useState('');
   const [newReplacement, setNewReplacement] = useState('');
   const [adding, setAdding] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const api = window.electronAPI;
 
   const loadWords = useCallback(async () => {
@@ -37,6 +39,56 @@ export default function SpecialWordsSettings() {
       };
     }
   }, [api, loadWords]);
+
+  const handleExport = async () => {
+    if (!api?.exportSpecialWords) {
+      toast.error('目前環境不支援匯出功能');
+      return;
+    }
+    setExporting(true);
+    try {
+      const res = await api.exportSpecialWords();
+      if (res?.canceled) {
+        return;
+      }
+      if (res?.success) {
+        toast.success(res.filePath ? `已匯出至：${res.filePath}` : '專有詞彙匯出成功');
+      } else {
+        toast.error('匯出失敗');
+      }
+    } catch (error) {
+      console.error('Failed to export special words:', error);
+      toast.error(error?.message || '匯出專有詞彙失敗');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!api?.importSpecialWords) {
+      toast.error('目前環境不支援匯入功能');
+      return;
+    }
+    setImporting(true);
+    try {
+      const res = await api.importSpecialWords();
+      if (res?.canceled) {
+        return;
+      }
+      if (res?.success && res.summary) {
+        const { added = 0, skipped = 0, invalid = 0 } = res.summary;
+        toast.success(`詞彙匯入完成：新增 ${added} 筆，略過 ${skipped} 筆，無效 ${invalid} 筆`);
+        await loadWords();
+      } else {
+        toast.error('匯入失敗');
+      }
+    } catch (error) {
+      console.error('Failed to import special words:', error);
+      toast.error(error?.message || '匯入專有詞彙失敗');
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -94,6 +146,30 @@ export default function SpecialWordsSettings() {
           <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium">
             {words.length}
           </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleImport}
+            disabled={importing || loading}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors disabled:opacity-50 cursor-pointer"
+            title="匯入詞彙（支援 JSON 與純文字格式）"
+            aria-label="匯入詞彙"
+          >
+            {importing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+            匯入
+          </button>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting || loading}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors disabled:opacity-50 cursor-pointer"
+            title="匯出詞彙為可攜式 JSON 檔案"
+            aria-label="匯出詞彙"
+          >
+            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            匯出
+          </button>
         </div>
       </div>
       <p className="text-xs text-gray-600 dark:text-gray-400 mb-5">

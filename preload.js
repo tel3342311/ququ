@@ -82,6 +82,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   exportTranscriptions: (format) => ipcRenderer.invoke("export-transcriptions", format),
   importSettings: () => ipcRenderer.invoke("import-settings"),
   exportSettings: () => ipcRenderer.invoke("export-settings"),
+  exportSpecialWords: () => ipcRenderer.invoke("export-special-words"),
+  importSpecialWords: (payload) => ipcRenderer.invoke("import-special-words", payload),
 
   // 系统信息
   getSystemInfo: () => ipcRenderer.invoke("get-system-info"),

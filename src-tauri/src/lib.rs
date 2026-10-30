@@ -10,7 +10,7 @@ mod windows;
 use ququ_speech::{Engine, SpeechService, TranscribeOptions};
 use serde_json::{json, Value};
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -201,6 +201,103 @@ async fn desktop_command(
             app.emit("special-words-update", json!({"deleted": target}))
                 .map_err(|e| e.to_string())?;
             Ok(result)
+        }
+        "export-special-words" => {
+            let explicit_path = args.first().and_then(Value::as_str).map(PathBuf::from);
+            let path = if let Some(p) = explicit_path {
+                Some(p)
+            } else {
+                let handle = app.clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    let file_path = handle
+                        .dialog()
+                        .file()
+                        .set_file_name("special-words.json")
+                        .add_filter("JSON (*.json)", &["json"])
+                        .blocking_save_file();
+                    if let Some(fp) = file_path {
+                        fp.into_path().map_err(|e| e.to_string()).map(Some)
+                    } else {
+                        Ok(None)
+                    }
+                })
+                .await
+                .map_err(|e| e.to_string())??
+            };
+            if let Some(path) = path {
+                let content = state.database()?.export_special_words()?;
+                std::fs::write(&path, &content).map_err(|e| e.to_string())?;
+                Ok(json!({"success": true, "filePath": path.to_string_lossy().to_string()}))
+            } else {
+                Ok(json!({"success": false, "canceled": true}))
+            }
+        }
+        "import-special-words" => {
+            let explicit_content = if let Some(first) = args.first() {
+                if let Some(s) = first.as_str() {
+                    let p = Path::new(s);
+                    if p.exists() && p.is_file() {
+                        Some((std::fs::read_to_string(p).map_err(|e| e.to_string())?, Some(s.to_string())))
+                    } else {
+                        Some((s.to_string(), None))
+                    }
+                } else if let Some(obj) = first.as_object() {
+                    if let Some(content) = obj.get("content").and_then(Value::as_str) {
+                        Some((content.to_string(), None))
+                    } else if let Some(path_str) = obj.get("path").and_then(Value::as_str) {
+                        Some((std::fs::read_to_string(path_str).map_err(|e| e.to_string())?, Some(path_str.to_string())))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            let (content, file_path_str) = if let Some((c, p)) = explicit_content {
+                (c, p)
+            } else {
+                let handle = app.clone();
+                let picked = tauri::async_runtime::spawn_blocking(move || {
+                    let file_path = handle
+                        .dialog()
+                        .file()
+                        .add_filter("支援的檔案 (*.json, *.txt)", &["json", "txt"])
+                        .add_filter("JSON (*.json)", &["json"])
+                        .add_filter("純文字 (*.txt)", &["txt"])
+                        .blocking_pick_file();
+                    if let Some(fp) = file_path {
+                        fp.into_path().map_err(|e| e.to_string()).map(Some)
+                    } else {
+                        Ok(None)
+                    }
+                })
+                .await
+                .map_err(|e| e.to_string())??;
+
+                if let Some(path) = picked {
+                    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+                    let text = String::from_utf8(bytes).map_err(|_| "檔案編碼必須為 UTF-8".to_string())?;
+                    let p_str = path.to_string_lossy().to_string();
+                    (text, Some(p_str))
+                } else {
+                    return Ok(json!({"success": false, "canceled": true}));
+                }
+            };
+
+            let summary = state.database()?.import_special_words(&content)?;
+            let added = summary.get("added").and_then(Value::as_u64).unwrap_or(0);
+            if added > 0 {
+                app.emit("special-words-update", &summary)
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(json!({
+                "success": true,
+                "filePath": file_path_str,
+                "summary": summary
+            }))
         }
         "hide-window" => {
             window.hide().map_err(|e| e.to_string())?;
