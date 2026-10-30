@@ -7,7 +7,7 @@ const SAMPLE_RATE: i32 = 16_000;
 const TAIL_SECONDS: f32 = 0.5;
 
 /// Streaming Paraformer recognizer bound to one utterance.
-pub(crate) struct SherpaStream {
+pub struct SherpaStream {
     recognizer: OnlineRecognizer,
     stream: OnlineStream,
 }
