@@ -12,6 +12,7 @@ mod native;
 pub mod native_stream;
 mod service;
 pub mod stream;
+pub mod stream_models;
 
 pub use convert::{convert_for_language, to_traditional_tw};
 pub use models::{available_models, DownloadProgress, Engine, ModelInfo, ModelState};
