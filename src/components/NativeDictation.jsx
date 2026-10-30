@@ -136,17 +136,17 @@ export default function NativeDictation() {
 
   return (
     <main className="native-classic text-foreground">
-      <header className="flex items-center justify-between gap-3 mb-8 draggable">
-        <h1 className="text-3xl font-bold chinese-title">蛐蛐</h1>
+      <header className="flex items-center justify-between gap-3 mb-2.5 flex-shrink-0 draggable">
+        <h1 className="text-2xl font-bold chinese-title">蛐蛐</h1>
         <div className="flex gap-1 non-draggable">
-          <button type="button" className="classic-tool" disabled={busy || saving} title="收合至極簡" aria-label="收合至極簡" onClick={() => changeMode('compact', phase)}><Minimize2 size={19} /></button>
-          <button type="button" className="classic-tool" title="歷史記錄" aria-label="歷史記錄" onClick={() => run(() => api.openHistoryWindow())}><History size={20} /></button>
-          <button type="button" className="classic-tool" title="設定" aria-label="設定" onClick={() => run(() => api.openSettingsWindow())}><Settings size={20} /></button>
-          <button type="button" className="classic-tool" title="收合至系統匣" aria-label="收合至系統匣" onClick={() => run(() => api.hideWindow())}><X size={19} /></button>
+          <button type="button" className="classic-tool" disabled={busy || saving} title="收合至極簡" aria-label="收合至極簡" onClick={() => changeMode('compact', phase)}><Minimize2 size={18} /></button>
+          <button type="button" className="classic-tool" title="歷史記錄" aria-label="歷史記錄" onClick={() => run(() => api.openHistoryWindow())}><History size={18} /></button>
+          <button type="button" className="classic-tool" title="設定" aria-label="設定" onClick={() => run(() => api.openSettingsWindow())}><Settings size={18} /></button>
+          <button type="button" className="classic-tool" title="收合至系統匣" aria-label="收合至系統匣" onClick={() => run(() => api.hideWindow())}><X size={18} /></button>
         </div>
       </header>
 
-      <section className="text-center mb-8">
+      <section className="text-center mb-3 flex-shrink-0">
         <button
           type="button"
           className={`classic-mic ${recording ? 'is-recording' : ''}`}
@@ -154,32 +154,41 @@ export default function NativeDictation() {
           aria-label={recording ? '停止錄音' : '開始錄音'}
           onClick={() => dictation.dispatch('toggle')}
         >
-          {['starting', 'processing', 'optimizing'].includes(phase) ? <Loader2 className="animate-spin" size={24} /> : recording ? <Square size={23} /> : <Mic size={25} />}
+          {['starting', 'processing', 'optimizing'].includes(phase) ? <Loader2 className="animate-spin" size={22} /> : recording ? <Square size={21} /> : <Mic size={23} />}
         </button>
-        <p className="mt-4 text-sm text-muted-foreground status-text" role="status">{status}</p>
-        {busy && <button type="button" className="text-sm mt-3 underline text-muted-foreground" onClick={() => dictation.dispatch('cancel')}>取消聽寫</button>}
-        {!model.isReady && <button type="button" className="text-sm mt-3 underline" onClick={() => run(() => api.openSettingsWindow())}>開啟模型設定</button>}
+        <p className="mt-2 text-xs text-muted-foreground status-text" role="status">{status}</p>
+        {busy && <button type="button" className="text-xs mt-1.5 underline text-muted-foreground block mx-auto" onClick={() => dictation.dispatch('cancel')}>取消聽寫</button>}
+        {!model.isReady && <button type="button" className="text-xs mt-1.5 underline block mx-auto" onClick={() => run(() => api.openSettingsWindow())}>開啟模型設定</button>}
       </section>
 
       {(result || specialWords.length > 0) && (
-        <section className="rounded-lg border bg-secondary/70 p-4 chinese-content relative" aria-label="最近一次聽寫與專有詞彙">
+        <section className="rounded-xl border bg-secondary/70 p-3.5 chinese-content relative flex-1 min-h-0 flex flex-col overflow-hidden shadow-xs" aria-label="最近一次聽寫與專有詞彙">
           {result && (
-            <>
-              <div className="flex justify-between items-center gap-2">
-                <h2 className="text-xs text-muted-foreground">最近一次聽寫</h2>
-                <button
-                  type="button"
-                  aria-label="複製辨識文字"
-                  className="classic-tool"
-                  onClick={() => run(async () => {
-                    await api.copyText(result.text);
-                    setNotice('文字已複製。');
-                  })}
-                >
-                  <Copy size={16} />
-                </button>
+            <div className="flex justify-between items-center gap-2 flex-shrink-0 pb-1.5 border-b border-border/40">
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-xs text-muted-foreground font-medium">最近一次聽寫</h2>
+                {result.text && (
+                  <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.2 rounded font-mono font-medium">
+                    {result.text.length}字
+                  </span>
+                )}
               </div>
+              <button
+                type="button"
+                aria-label="複製辨識文字"
+                className="classic-tool p-1 text-muted-foreground hover:text-foreground"
+                onClick={() => run(async () => {
+                  await api.copyText(result.text);
+                  setNotice('文字已複製。');
+                })}
+              >
+                <Copy size={15} />
+              </button>
+            </div>
+          )}
 
+          {result && (
+            <div className="flex-1 min-h-0 overflow-y-auto py-2 pr-1 classic-scroll">
               <EntityTranscript
                 text={result.text}
                 specialWords={specialWords}
@@ -188,12 +197,12 @@ export default function NativeDictation() {
               />
 
               {result.rawText && result.rawText !== result.text && (
-                <details className="mt-3 text-sm text-muted-foreground">
-                  <summary>原始辨識文字</summary>
-                  <p className="whitespace-pre-wrap mt-2">{result.rawText}</p>
+                <details className="mt-2.5 text-xs text-muted-foreground border-t border-border/30 pt-2">
+                  <summary className="cursor-pointer hover:text-foreground">原始辨識文字</summary>
+                  <p className="whitespace-pre-wrap mt-1 text-xs">{result.rawText}</p>
                 </details>
               )}
-            </>
+            </div>
           )}
 
           <EntityCorrectionPopover
@@ -206,18 +215,20 @@ export default function NativeDictation() {
             isSaving={correctionState.isSaving}
           />
 
-          <EntityDock
-            words={specialWords}
-            onAddClick={handleAddClick}
-            onEditWord={handleEditWord}
-            onDeleteWord={handleDeleteWord}
-            activeWord={correctionState.isOpen ? correctionState.word : ''}
-          />
+          <div className="flex-shrink-0">
+            <EntityDock
+              words={specialWords}
+              onAddClick={handleAddClick}
+              onEditWord={handleEditWord}
+              onDeleteWord={handleDeleteWord}
+              activeWord={correctionState.isOpen ? correctionState.word : ''}
+            />
+          </div>
         </section>
       )}
 
       {(error || dictation.error || notice) && (
-        <p className="mt-4 text-sm break-words text-muted-foreground" role="alert">
+        <p className="mt-2 text-xs break-words text-muted-foreground flex-shrink-0" role="alert">
           {error || dictation.error || notice}
         </p>
       )}
