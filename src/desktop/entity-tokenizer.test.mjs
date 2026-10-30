@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tokenizeTranscript, getTokenRange, joinTokenRange } from './entity-tokenizer.mjs';
+import { tokenizeTranscript, getTokenRange } from './entity-tokenizer.mjs';
 
 test('tokenizeTranscript returns empty array for empty or non-string input', () => {
   assert.deepEqual(tokenizeTranscript(''), []);
@@ -73,7 +73,6 @@ test('getTokenRange selects contiguous range of adjacent words', () => {
   assert.equal(range.startIndex, edgeIdx);
   assert.equal(range.endIndex, computeIdx);
   assert.equal(range.text, '邊緣運算');
-  assert.equal(joinTokenRange(tokens, edgeIdx, computeIdx), '邊緣運算');
 });
 
 test('getTokenRange is order-independent (reverse anchor and target)', () => {

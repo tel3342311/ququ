@@ -135,15 +135,3 @@ export function getTokenRange(tokens, anchorIndex, targetIndex) {
     text,
   };
 }
-
-/**
- * Returns the joined text of tokens between anchor and target indices.
- *
- * @param {Array<{text: string}>} tokens
- * @param {number|null|undefined} anchorIndex
- * @param {number|null|undefined} targetIndex
- * @returns {string}
- */
-export function joinTokenRange(tokens, anchorIndex, targetIndex) {
-  return getTokenRange(tokens, anchorIndex, targetIndex).text;
-}
