@@ -261,70 +261,72 @@ impl Database {
             return Err("無效的詞彙檔案：必須為匯出的 JSON 檔案".to_string());
         }
         {
-        let root: Value = serde_json::from_str(trimmed)
-            .map_err(|e| format!("無效的 JSON 格式: {e}"))?;
-        let obj = root
-            .as_object()
-            .ok_or_else(|| "詞彙檔案格式錯誤：根層級必須為物件".to_string())?;
-        let version = match obj.get("version") {
-            Some(Value::Number(n)) => n
-                .as_i64()
-                .ok_or_else(|| "詞彙檔案格式錯誤：版本號必須為整數".to_string())?,
-            Some(_) => return Err("詞彙檔案格式錯誤：版本號必須為整數".to_string()),
-            None => return Err("詞彙檔案格式錯誤：缺少版本號".to_string()),
-        };
-        if version > 1 {
-            return Err(format!("不支援的檔案版本：版本 {version}（目前僅支援版本 1）"));
-        }
-        if version < 1 {
-            return Err("無效的檔案版本：版本號必須大於或等於 1".to_string());
-        }
-
-        let words = match obj.get("words") {
-            Some(Value::Array(arr)) => arr,
-            _ => return Err("詞彙檔案格式錯誤：words 欄位必須為陣列".to_string()),
-        };
-
-        for item in words {
-            if let Some(item_obj) = item.as_object() {
-                let word_str = match item_obj.get("word").and_then(Value::as_str) {
-                    Some(w) if !w.trim().is_empty() => w.trim().to_string(),
-                    _ => {
-                        invalid += 1;
-                        continue;
-                    }
-                };
-                let replacement = match item_obj.get("replacement") {
-                    Some(Value::String(s)) => {
-                        let s_trim = s.trim();
-                        if s_trim.is_empty() {
-                            None
-                        } else {
-                            Some(s_trim.to_string())
-                        }
-                    }
-                    Some(Value::Null) | None => None,
-                    Some(_) => {
-                        invalid += 1;
-                        continue;
-                    }
-                };
-                let created_at = item_obj
-                    .get("created_at")
-                    .and_then(Value::as_str)
-                    .map(str::trim)
-                    .filter(|s| !s.is_empty())
-                    .map(ToString::to_string);
-
-                entries.push(Entry {
-                    word: word_str,
-                    replacement,
-                    created_at,
-                });
-            } else {
-                invalid += 1;
+            let root: Value =
+                serde_json::from_str(trimmed).map_err(|e| format!("無效的 JSON 格式: {e}"))?;
+            let obj = root
+                .as_object()
+                .ok_or_else(|| "詞彙檔案格式錯誤：根層級必須為物件".to_string())?;
+            let version = match obj.get("version") {
+                Some(Value::Number(n)) => n
+                    .as_i64()
+                    .ok_or_else(|| "詞彙檔案格式錯誤：版本號必須為整數".to_string())?,
+                Some(_) => return Err("詞彙檔案格式錯誤：版本號必須為整數".to_string()),
+                None => return Err("詞彙檔案格式錯誤：缺少版本號".to_string()),
+            };
+            if version > 1 {
+                return Err(format!(
+                    "不支援的檔案版本：版本 {version}（目前僅支援版本 1）"
+                ));
             }
-        }
+            if version < 1 {
+                return Err("無效的檔案版本：版本號必須大於或等於 1".to_string());
+            }
+
+            let words = match obj.get("words") {
+                Some(Value::Array(arr)) => arr,
+                _ => return Err("詞彙檔案格式錯誤：words 欄位必須為陣列".to_string()),
+            };
+
+            for item in words {
+                if let Some(item_obj) = item.as_object() {
+                    let word_str = match item_obj.get("word").and_then(Value::as_str) {
+                        Some(w) if !w.trim().is_empty() => w.trim().to_string(),
+                        _ => {
+                            invalid += 1;
+                            continue;
+                        }
+                    };
+                    let replacement = match item_obj.get("replacement") {
+                        Some(Value::String(s)) => {
+                            let s_trim = s.trim();
+                            if s_trim.is_empty() {
+                                None
+                            } else {
+                                Some(s_trim.to_string())
+                            }
+                        }
+                        Some(Value::Null) | None => None,
+                        Some(_) => {
+                            invalid += 1;
+                            continue;
+                        }
+                    };
+                    let created_at = item_obj
+                        .get("created_at")
+                        .and_then(Value::as_str)
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .map(ToString::to_string);
+
+                    entries.push(Entry {
+                        word: word_str,
+                        replacement,
+                        created_at,
+                    });
+                } else {
+                    invalid += 1;
+                }
+            }
         }
 
         use std::collections::HashSet;
@@ -362,11 +364,9 @@ impl Database {
             if existing_words.contains(&entry.word) {
                 skipped += 1;
             } else {
-                if let Err(e) = insert_stmt.execute(params![
-                    entry.word,
-                    entry.replacement,
-                    entry.created_at
-                ]) {
+                if let Err(e) =
+                    insert_stmt.execute(params![entry.word, entry.replacement, entry.created_at])
+                {
                     let _ = self.0.execute_batch("ROLLBACK");
                     return Err(e.to_string());
                 }
@@ -376,9 +376,7 @@ impl Database {
         }
         drop(insert_stmt);
 
-        self.0
-            .execute_batch("COMMIT")
-            .map_err(|e| e.to_string())?;
+        self.0.execute_batch("COMMIT").map_err(|e| e.to_string())?;
 
         Ok(json!({
             "added": added,
@@ -553,7 +551,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let db = Database::open(&dir.path().join("test_plain.db")).unwrap();
 
-        assert!(db.import_special_words("庫伯內提斯 => Kubernetes\n蛐蛐").is_err());
+        assert!(db
+            .import_special_words("庫伯內提斯 => Kubernetes\n蛐蛐")
+            .is_err());
         assert!(db.import_special_words("[{\"word\":\"test\"}]").is_err());
         assert_eq!(db.get_special_words().unwrap().as_array().unwrap().len(), 0);
 
@@ -581,7 +581,8 @@ mod tests {
                 {"word": "王小明", "replacement": "Xiao-Ming"}, // new
                 {"word": "王小明", "replacement": "Other"}, // duplicate in same file -> skip
             ]
-        }).to_string();
+        })
+        .to_string();
 
         let summary = db.import_special_words(&json_content).unwrap();
         assert_eq!(summary["added"], 1);
@@ -630,7 +631,8 @@ mod tests {
                 {"word": "   "},
                 {"word": "AnotherValid", "replacement": 12345} // invalid replacement type
             ]
-        }).to_string();
+        })
+        .to_string();
 
         let summary = db.import_special_words(&json_with_unknown).unwrap();
         assert_eq!(summary["added"], 1);

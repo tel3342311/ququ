@@ -247,7 +247,8 @@ async fn desktop_command(
                 return Ok(json!({"success": false, "canceled": true}));
             };
             let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
-            let content = String::from_utf8(bytes).map_err(|_| "檔案編碼必須為 UTF-8".to_string())?;
+            let content =
+                String::from_utf8(bytes).map_err(|_| "檔案編碼必須為 UTF-8".to_string())?;
             let file_path_str = Some(path.to_string_lossy().to_string());
 
             let summary = state.database()?.import_special_words(&content)?;
