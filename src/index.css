@@ -640,6 +640,17 @@ html, body {
   border-bottom: 2px solid #2563eb;
 }
 
+.entity-token-selected {
+  background-color: hsla(var(--primary) / 0.28) !important;
+  color: hsl(var(--primary)) !important;
+  border-bottom: 2px solid hsl(var(--primary)) !important;
+}
+.dark .entity-token-selected {
+  background-color: hsla(var(--primary) / 0.35) !important;
+  color: #93c5fd !important;
+  border-bottom: 2px solid hsl(var(--primary)) !important;
+}
+
 .entity-chip {
   display: inline-flex;
   align-items: center;
