@@ -1,6 +1,7 @@
 use crate::{
     audio,
     models::{self, Artifact, DownloadProgress, Engine, ModelState},
+    stream_models::{self, StreamDownloadProgress, StreamModelStatus},
     Result, SpeechError,
 };
 use serde::{Deserialize, Serialize};
@@ -76,6 +77,8 @@ pub struct SpeechService {
     download_lock: Mutex<()>,
     #[cfg(feature = "native")]
     runtime: Mutex<Option<crate::native::NativeRuntime>>,
+    #[cfg(feature = "native")]
+    stream_runtime: Mutex<Option<std::sync::Arc<crate::native_stream::StreamRuntime>>>,
 }
 
 impl SpeechService {
@@ -90,6 +93,8 @@ impl SpeechService {
             download_lock: Mutex::new(()),
             #[cfg(feature = "native")]
             runtime: Mutex::new(None),
+            #[cfg(feature = "native")]
+            stream_runtime: Mutex::new(None),
         })
     }
 
@@ -274,12 +279,128 @@ impl SpeechService {
         }
     }
 
+    /// Streaming package state, using the same verification cache as status().
+    pub fn streaming_status(&self) -> Result<StreamModelStatus> {
+        let mut missing = Vec::new();
+        for member in stream_models::STREAMING_PARAFORMER.members {
+            if !self.check_artifact(member.as_artifact())? {
+                missing.push(member.relative_path.to_owned());
+            }
+        }
+        Ok(StreamModelStatus {
+            installed: missing.is_empty(),
+            missing,
+            download_bytes: stream_models::STREAMING_PARAFORMER.bytes,
+        })
+    }
+
+    pub fn download_streaming_models(
+        &self,
+        progress: impl FnMut(StreamDownloadProgress),
+    ) -> Result<StreamModelStatus> {
+        let _guard = self
+            .download_lock
+            .lock()
+            .map_err(|_| SpeechError::StatePoisoned)?;
+        stream_models::download(&self.root, progress)?;
+        self.verified
+            .lock()
+            .map_err(|_| SpeechError::StatePoisoned)?
+            .clear();
+        self.streaming_status()
+    }
+
+    /// Begin one streaming utterance. The model loads on first use and is then
+    /// shared; sessions are independent and never touch the offline runtime.
+    #[cfg(feature = "native")]
+    pub fn start_stream(
+        &self,
+    ) -> Result<crate::stream::StreamSession<crate::native_stream::SherpaStream>> {
+        let mut guard = self
+            .stream_runtime
+            .lock()
+            .map_err(|_| SpeechError::StatePoisoned)?;
+        if guard.is_none() {
+            let status = self.streaming_status()?;
+            if !status.installed {
+                return Err(SpeechError::MissingModels(status.missing.join(", ")));
+            }
+            let (encoder, decoder, tokens) = stream_models::paths(&self.root)?;
+            let punctuation = if self.check_artifact(models::PUNC_MODEL)? {
+                Some(models::artifact_path(
+                    &self.root,
+                    models::PUNC_MODEL.relative_path,
+                )?)
+            } else {
+                None
+            };
+            *guard = Some(std::sync::Arc::new(
+                crate::native_stream::StreamRuntime::new(
+                    &encoder,
+                    &decoder,
+                    &tokens,
+                    punctuation.as_deref(),
+                )?,
+            ));
+        }
+        let runtime = guard
+            .as_ref()
+            .ok_or_else(|| SpeechError::Inference("missing streaming runtime".into()))?;
+        Ok(crate::stream::StreamSession::new(runtime.session()))
+    }
+
+    /// Finish a streaming utterance and shape it like an offline Transcription:
+    /// punctuation when its model is installed, then the language conversion.
+    #[cfg(feature = "native")]
+    pub fn finish_stream(
+        &self,
+        session: &mut crate::stream::StreamSession<crate::native_stream::SherpaStream>,
+        language: &str,
+        duration: f64,
+    ) -> Result<Transcription> {
+        let raw = session.finish()?;
+        let mut warnings = Vec::new();
+        let mut text = raw.clone();
+        if !raw.is_empty() {
+            let guard = self
+                .stream_runtime
+                .lock()
+                .map_err(|_| SpeechError::StatePoisoned)?;
+            if let Some(runtime) = guard.as_ref() {
+                if let Some(punctuated) = runtime.punctuate(&raw) {
+                    text = punctuated;
+                } else {
+                    warnings.push("Punctuation unavailable; returned raw recognition text".into());
+                }
+            }
+        }
+        Ok(Transcription {
+            success: true,
+            text: crate::convert_for_language(&text, language),
+            raw_text: crate::convert_for_language(&raw, language),
+            confidence: 0.0,
+            duration,
+            language: if language == "zh" {
+                "zh-TW".into()
+            } else {
+                language.into()
+            },
+            model_type: "onnx-streaming".into(),
+            engine: Engine::Paraformer,
+            warnings,
+        })
+    }
+
     /// Release native handles; the next valid transcription lazily initializes.
     pub fn shutdown(&self) -> Result<()> {
         #[cfg(feature = "native")]
         {
             *self
                 .runtime
+                .lock()
+                .map_err(|_| SpeechError::StatePoisoned)? = None;
+            *self
+                .stream_runtime
                 .lock()
                 .map_err(|_| SpeechError::StatePoisoned)? = None;
         }

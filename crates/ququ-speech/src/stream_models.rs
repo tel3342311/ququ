@@ -27,6 +27,18 @@ pub struct Member {
     pub sha256: &'static str,
 }
 
+impl Member {
+    pub(crate) fn as_artifact(&self) -> crate::models::Artifact {
+        crate::models::Artifact {
+            role: "asr",
+            relative_path: self.relative_path,
+            url: "",
+            bytes: self.bytes,
+            sha256: self.sha256,
+        }
+    }
+}
+
 pub struct Archive {
     pub url: &'static str,
     pub bytes: u64,
