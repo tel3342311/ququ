@@ -184,6 +184,7 @@ impl NativeRuntime {
             model_type: "onnx".into(),
             engine: self.engine,
             warnings,
+            first_pass: None,
         })
     }
 }

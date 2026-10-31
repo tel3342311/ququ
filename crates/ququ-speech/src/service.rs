@@ -1,6 +1,7 @@
 use crate::{
     audio,
     models::{self, Artifact, DownloadProgress, Engine, ModelState},
+    stream_models::{self, StreamDownloadProgress, StreamModelStatus},
     Result, SpeechError,
 };
 use serde::{Deserialize, Serialize};
@@ -46,6 +47,9 @@ pub struct Transcription {
     pub model_type: String,
     pub engine: Engine,
     pub warnings: Vec<String>,
+    /// Streaming text that a second pass replaced; absent for single-pass results.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_pass: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -76,6 +80,12 @@ pub struct SpeechService {
     download_lock: Mutex<()>,
     #[cfg(feature = "native")]
     runtime: Mutex<Option<crate::native::NativeRuntime>>,
+    #[cfg(feature = "native")]
+    stream_runtime: Mutex<Option<std::sync::Arc<crate::native_stream::StreamRuntime>>>,
+    /// Dedicated SenseVoice runtime for second-pass finalization, independent of
+    /// the user's selected offline engine so finishing never switches engines.
+    #[cfg(feature = "native")]
+    second_pass: Mutex<Option<crate::native::NativeRuntime>>,
 }
 
 impl SpeechService {
@@ -90,6 +100,10 @@ impl SpeechService {
             download_lock: Mutex::new(()),
             #[cfg(feature = "native")]
             runtime: Mutex::new(None),
+            #[cfg(feature = "native")]
+            stream_runtime: Mutex::new(None),
+            #[cfg(feature = "native")]
+            second_pass: Mutex::new(None),
         })
     }
 
@@ -274,12 +288,220 @@ impl SpeechService {
         }
     }
 
+    /// Streaming package state, using the same verification cache as status().
+    pub fn streaming_status(&self) -> Result<StreamModelStatus> {
+        let mut missing = Vec::new();
+        for member in stream_models::STREAMING_PARAFORMER.members {
+            if !self.check_artifact(member.as_artifact())? {
+                missing.push(member.relative_path.to_owned());
+            }
+        }
+        Ok(StreamModelStatus {
+            installed: missing.is_empty(),
+            second_pass_ready: self.status(Engine::SenseVoice)?.models_downloaded,
+            missing,
+            download_bytes: stream_models::STREAMING_PARAFORMER.bytes,
+        })
+    }
+
+    pub fn download_streaming_models(
+        &self,
+        progress: impl FnMut(StreamDownloadProgress),
+    ) -> Result<StreamModelStatus> {
+        let _guard = self
+            .download_lock
+            .lock()
+            .map_err(|_| SpeechError::StatePoisoned)?;
+        stream_models::download(&self.root, progress)?;
+        self.verified
+            .lock()
+            .map_err(|_| SpeechError::StatePoisoned)?
+            .clear();
+        self.streaming_status()
+    }
+
+    /// Begin one streaming utterance. The model loads on first use and is then
+    /// shared; sessions are independent and never touch the offline runtime.
+    #[cfg(feature = "native")]
+    pub fn start_stream(
+        &self,
+    ) -> Result<crate::stream::StreamSession<crate::native_stream::SherpaStream>> {
+        let mut guard = self
+            .stream_runtime
+            .lock()
+            .map_err(|_| SpeechError::StatePoisoned)?;
+        if guard.is_none() {
+            let status = self.streaming_status()?;
+            if !status.installed {
+                return Err(SpeechError::MissingModels(status.missing.join(", ")));
+            }
+            let (encoder, decoder, tokens) = stream_models::paths(&self.root)?;
+            let punctuation = if self.check_artifact(models::PUNC_MODEL)? {
+                Some(models::artifact_path(
+                    &self.root,
+                    models::PUNC_MODEL.relative_path,
+                )?)
+            } else {
+                None
+            };
+            *guard = Some(std::sync::Arc::new(
+                crate::native_stream::StreamRuntime::new(
+                    &encoder,
+                    &decoder,
+                    &tokens,
+                    punctuation.as_deref(),
+                )?,
+            ));
+        }
+        let runtime = guard
+            .as_ref()
+            .ok_or_else(|| SpeechError::Inference("missing streaming runtime".into()))?;
+        Ok(crate::stream::StreamSession::new(runtime.session()))
+    }
+
+    /// Finish a streaming utterance and shape it like an offline Transcription:
+    /// punctuation when its model is installed, then the language conversion.
+    #[cfg(feature = "native")]
+    pub fn finish_stream(
+        &self,
+        session: &mut crate::stream::StreamSession<crate::native_stream::SherpaStream>,
+        language: &str,
+        duration: f64,
+    ) -> Result<Transcription> {
+        let raw = session.finish()?;
+        let mut warnings = Vec::new();
+        let mut text = raw.clone();
+        if !raw.is_empty() {
+            let guard = self
+                .stream_runtime
+                .lock()
+                .map_err(|_| SpeechError::StatePoisoned)?;
+            if let Some(runtime) = guard.as_ref() {
+                if let Some(punctuated) = runtime.punctuate(&raw) {
+                    text = punctuated;
+                } else {
+                    warnings.push("Punctuation unavailable; returned raw recognition text".into());
+                }
+            }
+        }
+        Ok(Transcription {
+            success: true,
+            text: crate::convert_for_language(&text, language),
+            raw_text: crate::convert_for_language(&raw, language),
+            confidence: 0.0,
+            duration,
+            language: if language == "zh" {
+                "zh-TW".into()
+            } else {
+                language.into()
+            },
+            model_type: "onnx-streaming".into(),
+            engine: Engine::Paraformer,
+            warnings,
+            first_pass: None,
+        })
+    }
+
+    /// Finish a streaming utterance, then let SenseVoice re-decode the whole
+    /// audio and return its text (it has punctuation and number normalization
+    /// built in). The streaming text is the fallback: any second-pass problem
+    /// returns it with a warning instead of failing the dictation.
+    #[cfg(feature = "native")]
+    pub fn finish_stream_two_pass(
+        &self,
+        session: &mut crate::stream::StreamSession<crate::native_stream::SherpaStream>,
+        pcm: &[i16],
+        language: &str,
+    ) -> Result<Transcription> {
+        let duration = pcm.len() as f64 / 16_000.0;
+        let mut streaming = self.finish_stream(session, language, duration)?;
+        if streaming.text.is_empty() {
+            return Ok(streaming);
+        }
+        match self.second_pass_text(pcm, language) {
+            Ok(Some(second)) => {
+                let first = std::mem::replace(&mut streaming.text, second.text);
+                streaming.first_pass = Some(first);
+                streaming.raw_text = second.raw_text;
+                streaming.model_type = "onnx-two-pass".into();
+                streaming.engine = Engine::SenseVoice;
+                streaming.warnings = second.warnings;
+            }
+            Ok(None) => streaming
+                .warnings
+                .push("Second pass heard no speech; kept the streaming text".into()),
+            Err(error) => streaming
+                .warnings
+                .push(format!("Second pass failed; kept the streaming text: {error}")),
+        }
+        Ok(streaming)
+    }
+
+    /// Load the second-pass model ahead of the first finish so stopping a
+    /// recording does not pay the model load. Errors are returned, not fatal.
+    #[cfg(feature = "native")]
+    pub fn warm_second_pass(&self, language: &str) -> Result<()> {
+        self.second_pass_runtime(language).map(|_| ())
+    }
+
+    #[cfg(feature = "native")]
+    fn second_pass_runtime(
+        &self,
+        language: &str,
+    ) -> Result<std::sync::MutexGuard<'_, Option<crate::native::NativeRuntime>>> {
+        self.require_models(Engine::SenseVoice)?;
+        let mut guard = self
+            .second_pass
+            .lock()
+            .map_err(|_| SpeechError::StatePoisoned)?;
+        if guard.as_ref().is_none_or(|runtime| runtime.language != language) {
+            *guard = Some(crate::native::NativeRuntime::new(
+                &self.root,
+                Engine::SenseVoice,
+                language,
+            )?);
+        }
+        Ok(guard)
+    }
+
+    #[cfg(feature = "native")]
+    fn second_pass_text(&self, pcm: &[i16], language: &str) -> Result<Option<Transcription>> {
+        // SenseVoice handles every language the app offers; unknown values fall back.
+        let language = if ["zh", "en", "ja", "ko", "yue", "auto"].contains(&language) {
+            language
+        } else {
+            "zh"
+        };
+        let guard = self.second_pass_runtime(language)?;
+        let audio = audio::DecodedAudio {
+            sample_rate: 16_000,
+            samples: pcm.iter().map(|&s| s as f32 / 32768.0).collect(),
+        };
+        let options = TranscribeOptions {
+            language: language.into(),
+            ..TranscribeOptions::default()
+        };
+        let result = guard
+            .as_ref()
+            .ok_or_else(|| SpeechError::Inference("missing second-pass runtime".into()))?
+            .transcribe(audio, &options)?;
+        Ok((!result.text.trim().is_empty()).then_some(result))
+    }
+
     /// Release native handles; the next valid transcription lazily initializes.
     pub fn shutdown(&self) -> Result<()> {
         #[cfg(feature = "native")]
         {
             *self
                 .runtime
+                .lock()
+                .map_err(|_| SpeechError::StatePoisoned)? = None;
+            *self
+                .stream_runtime
+                .lock()
+                .map_err(|_| SpeechError::StatePoisoned)? = None;
+            *self
+                .second_pass
                 .lock()
                 .map_err(|_| SpeechError::StatePoisoned)? = None;
         }
