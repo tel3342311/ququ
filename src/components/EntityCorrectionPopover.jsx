@@ -54,7 +54,7 @@ export default function EntityCorrectionPopover({
     >
       <div className="flex items-center justify-between text-xs font-semibold mb-2">
         <span className="text-foreground">
-          {isEditing ? `編輯專有詞彙「${word}」` : `為「${word || '新詞彙'}」建立專有詞彙`}
+          {isEditing ? `編輯專有詞彙「${word}」` : `為「${currentWord || word || '新詞彙'}」建立專有詞彙`}
         </span>
         <button
           type="button"

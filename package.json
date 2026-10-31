@@ -35,7 +35,8 @@
     "test:rust-ui": "node scripts/test-native-ui.cjs",
     "test:classic-layout": "node scripts/test-classic-layout.cjs",
     "test:streaming-ui": "node scripts/test-streaming-ui.cjs",
-    "test:theme": "node scripts/test-theme.cjs"
+    "test:theme": "node scripts/test-theme.cjs",
+    "test:shift-merge-ui": "node scripts/test-shift-merge-ui.cjs"
   },
   "keywords": [
     "dictation",

@@ -201,6 +201,7 @@ export default function NativeDictation() {
                 specialWords={specialWords}
                 onWordClick={handleWordClick}
                 paragraphRef={sentenceRef}
+                isPopoverOpen={correctionState.isOpen}
               />
 
               {result.firstPass && result.firstPass !== result.text && (
