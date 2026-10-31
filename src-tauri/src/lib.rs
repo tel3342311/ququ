@@ -263,11 +263,19 @@ async fn desktop_command(
             let guard = state.indicator.paste_guard();
             let target = state.indicator.target_window();
             // Hide only the dictation overlay to return focus to the user's editor.
+            #[cfg(windows)]
             if window.label() == "main"
                 && state.interface.lock().map_err(|e| e.to_string())?.mode
                     == interface::Mode::Compact
             {
                 window.hide().map_err(|e| e.to_string())?;
+            }
+            #[cfg(not(windows))]
+            if window.label() == "main"
+                && state.interface.lock().map_err(|e| e.to_string())?.mode
+                    == interface::Mode::Compact
+            {
+                let _ = window.set_ignore_cursor_events(true);
             }
             tauri::async_runtime::spawn_blocking(move || clipboard::paste(&content, guard, target))
                 .await

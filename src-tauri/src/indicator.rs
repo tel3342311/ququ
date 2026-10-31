@@ -51,11 +51,8 @@ fn paste_allowed(epoch_current: bool, external: bool, target: isize, current: is
     epoch_current && external && (target == 0 || target == current)
 }
 
-fn position(app: &AppHandle) -> Result<(), String> {
-    let window = app
-        .get_webview_window("main")
-        .ok_or("Dictation window unavailable")?;
-    // Sample once at recording start. Later mouse movement must not move the overlay.
+#[cfg(windows)]
+fn sample_position(window: &tauri::WebviewWindow) -> Result<((i32, i32), tauri::Monitor), String> {
     let mouse = window.cursor_position().map_err(|e| e.to_string())?;
     let anchor = (mouse.x.round() as i32, mouse.y.round() as i32);
     let monitor = window
@@ -63,6 +60,48 @@ fn position(app: &AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?
         .or(window.primary_monitor().map_err(|e| e.to_string())?)
         .ok_or("No monitor available")?;
+    Ok((anchor, monitor))
+}
+
+#[cfg(target_os = "macos")]
+fn sample_position(window: &tauri::WebviewWindow) -> Result<((i32, i32), tauri::Monitor), String> {
+    let mouse = objc2_app_kit::NSEvent::mouseLocation();
+    let primary = window
+        .primary_monitor()
+        .map_err(|e| e.to_string())?
+        .ok_or("No monitor available")?;
+    let primary_height = primary.size().height as f64 / primary.scale_factor();
+    let (logical_x, logical_y) =
+        geometry::macos_cursor_to_logical((mouse.x, mouse.y), primary_height);
+    let monitor = window
+        .monitor_from_point(logical_x, logical_y)
+        .map_err(|e| e.to_string())?
+        .unwrap_or(primary);
+    let scale = monitor.scale_factor();
+    let origin = monitor.position();
+    let anchor =
+        geometry::macos_logical_to_anchor((logical_x, logical_y), (origin.x, origin.y), scale);
+    Ok((anchor, monitor))
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn sample_position(window: &tauri::WebviewWindow) -> Result<((i32, i32), tauri::Monitor), String> {
+    let mouse = window.cursor_position().map_err(|e| e.to_string())?;
+    let anchor = (mouse.x.round() as i32, mouse.y.round() as i32);
+    let monitor = window
+        .monitor_from_point(f64::from(anchor.0), f64::from(anchor.1))
+        .map_err(|e| e.to_string())?
+        .or(window.primary_monitor().map_err(|e| e.to_string())?)
+        .ok_or("No monitor available")?;
+    Ok((anchor, monitor))
+}
+
+fn position(app: &AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or("Dictation window unavailable")?;
+    // Sample once at recording start. Later mouse movement must not move the overlay.
+    let (anchor, monitor) = sample_position(&window)?;
     let work = monitor.work_area();
     let (x, y) = place(
         anchor,
@@ -135,6 +174,8 @@ impl Indicator {
                 self.own.store(hwnd.0 as isize, Ordering::Release);
             }
         }
+        #[cfg(not(windows))]
+        let _ = app;
         #[cfg(target_os = "macos")]
         self.own
             .store(std::process::id() as isize, Ordering::Release);
@@ -219,7 +260,16 @@ impl Indicator {
                 *self.classic_position.lock().map_err(|e| e.to_string())? = Some(position);
             }
             size_window(&window)?;
+            #[cfg(windows)]
             window.hide().map_err(|e| e.to_string())?;
+            #[cfg(not(windows))]
+            {
+                // On macOS, WebKit suspends audio capture and navigator.mediaDevices.getUserMedia()
+                // hangs indefinitely if the window is ordered out (hidden).
+                // Keep the window ordered in with transparent background and click-through while idle.
+                let _ = window.set_ignore_cursor_events(true);
+                let _ = window.show();
+            }
         }
         Ok(())
     }
@@ -249,6 +299,8 @@ impl Indicator {
             app.run_on_main_thread(move || {
                 if show_clock.load(Ordering::Acquire) == generation {
                     if let Some(window) = show_app.get_webview_window("main") {
+                        #[cfg(not(windows))]
+                        let _ = window.set_ignore_cursor_events(false);
                         let _ = window.show();
                         let _ = size_window(&window);
                     }
@@ -262,7 +314,10 @@ impl Indicator {
                 let _ = handle.run_on_main_thread(move || {
                     if clock.load(Ordering::Acquire) == generation {
                         if let Some(window) = hide_app.get_webview_window("main") {
+                            #[cfg(windows)]
                             let _ = window.hide();
+                            #[cfg(not(windows))]
+                            let _ = window.set_ignore_cursor_events(true);
                         }
                     }
                 });

@@ -74,7 +74,7 @@ If you explicitly pass `--target x86_64-pc-windows-msvc`, outputs instead appear
 4. Allow microphone access. Configure the recording hotkey.
 5. Select Classic or Compact in Settings → 介面模式, or from the tray menu.
 
-New installations use Classic. Compact is hidden while idle, so use the tray icon to open Settings or switch back to Classic.
+New installations use Classic. Compact is hidden (Windows) or transparent and click-through (macOS) while idle, so use the tray icon to open Settings or switch back to Classic.
 
 ### WebView2 and offline installation
 
@@ -222,7 +222,7 @@ Performance measurements and their limits are in [performance-baseline.md](perfo
 | No installer was generated | Remove `--no-bundle`; use `npm run build:rust`. For macOS, pass the macOS override. |
 | Cannot rebuild a Windows executable | Quit the running app through the tray before linking it again. |
 | Electron/better-sqlite3 postinstall fails | Use the pnpm install command above with `--ignore-scripts`; build with `build:rust`. |
-| Compact looks like the app disappeared | It hides while idle. Use the tray/menu bar to open Settings or choose Classic. |
+| Compact looks like the app disappeared | It is hidden (Windows) or fully transparent (macOS) while idle. Use the tray/menu bar to open Settings or choose Classic. |
 | No recognition after installation | Open model settings, download/initialize SenseVoice, and check microphone access. |
 | macOS paste or hotkey fails | Check Input Monitoring and Accessibility permissions and use a combination shortcut; validate on that Mac. |
 | macOS refuses the downloaded release | Verify signing/notarization and the installed bundle; rebuild with valid distribution credentials. |

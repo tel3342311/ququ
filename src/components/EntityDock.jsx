@@ -9,8 +9,8 @@ export default function EntityDock({
   activeWord = '',
 }) {
   return (
-    <div className="mt-3 pt-3 border-t border-border/60">
-      <div className="flex items-center justify-between text-xs mb-2">
+    <div className="mt-2.5 pt-2 border-t border-border/60">
+      <div className="flex items-center justify-between text-xs mb-1.5">
         <div className="flex items-center gap-1.5 font-semibold text-foreground">
           <BookA className="w-3.5 h-3.5 text-primary" />
           <span>專有詞彙</span>
@@ -28,11 +28,11 @@ export default function EntityDock({
       </div>
 
       {words.length === 0 ? (
-        <p className="text-[11px] text-muted-foreground py-1.5 text-center">
+        <p className="text-[11px] text-muted-foreground py-1 text-center">
           尚無專有詞彙。點擊上方文字中的單詞即可快速加入。
         </p>
       ) : (
-        <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto py-1">
+        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto py-0.5 classic-scroll">
           {words.map((item) => {
             const isPair = Boolean(item.replacement && item.replacement.trim());
             const isActive = activeWord === item.word;

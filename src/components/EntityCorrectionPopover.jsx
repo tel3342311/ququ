@@ -49,7 +49,7 @@ export default function EntityCorrectionPopover({
     <div
       role="dialog"
       aria-label="建立專有詞彙"
-      className="mt-3 p-3 rounded-lg border border-primary/30 bg-card text-card-foreground shadow-md transition-all duration-150 select-none"
+      className="mt-2.5 p-3 rounded-lg border border-primary/30 bg-card text-card-foreground shadow-md transition-all duration-150 select-none flex-shrink-0"
       onKeyDown={handleKeyDown}
     >
       <div className="flex items-center justify-between text-xs font-semibold mb-2">

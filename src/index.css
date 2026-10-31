@@ -27,7 +27,16 @@ html.compact-dictation, .compact-dictation body, .compact-dictation #root {
 .recording-indicator.is-recording { opacity: 1; }
 .recording-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: #ef4444; }
 .recording-indicator.is-recording .recording-dot { animation: recording-breathe 1.8s ease-in-out infinite; }
-.recording-label { color: hsl(var(--foreground)); font-size: 13px; line-height: 20px; font-weight: 500; white-space: nowrap; }
+.recording-label {
+  color: hsl(var(--foreground));
+  font-family: system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'WenQuanYi Micro Hei', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 @keyframes recording-breathe {
   0%, 100% { opacity: .55; transform: scale(.9); box-shadow: 0 0 0 0 #ef444400; }
   50% { opacity: 1; transform: scale(1.12); box-shadow: 0 0 0 4px #ef444425; }
@@ -586,14 +595,42 @@ html, body {
   }
 }
 
-/* The native Classic view keeps the original microphone + transcript layout. */
-.native-classic { min-height:100vh; padding:20px; background:linear-gradient(140deg,hsl(var(--background)),hsl(var(--secondary))); }
-.classic-tool { padding:8px; border-radius:10px; color:hsl(var(--muted-foreground)); display:inline-flex; align-items:center; justify-content:center; }
-.classic-tool:hover { background:hsl(var(--secondary)); color:hsl(var(--foreground)); }
-.classic-tool:disabled { opacity:.4; }
-.classic-mic { display:flex; align-items:center; justify-content:center; width:64px; height:64px; margin:0 auto; border-radius:50%; background:#3b82f6; color:white; border:2px solid #93c5fd; box-shadow:0 5px 15px #0002; }
-.classic-mic.is-recording { background:#dc2626; border-color:#fca5a5; }
-.classic-mic:disabled { opacity:.5; }
+/* The native Classic view keeps the original microphone + transcript layout with a fixed dock. */
+.native-classic {
+  height: 100vh;
+  box-sizing: border-box;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(140deg, hsl(var(--background)), hsl(var(--secondary)));
+}
+.classic-tool { padding: 6px; border-radius: 8px; color: hsl(var(--muted-foreground)); display: inline-flex; align-items: center; justify-content: center; }
+.classic-tool:hover { background: hsl(var(--secondary)); color: hsl(var(--foreground)); }
+.classic-tool:disabled { opacity: .4; }
+.classic-mic { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; margin: 0 auto; border-radius: 50%; background: #3b82f6; color: white; border: 2px solid #93c5fd; box-shadow: 0 4px 12px #0002; transition: transform 0.15s ease, background-color 0.15s ease; }
+.classic-mic:hover:not(:disabled) { transform: scale(1.04); }
+.classic-mic.is-recording { background: #dc2626; border-color: #fca5a5; }
+.classic-mic:disabled { opacity: .5; }
+
+.classic-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}
+.classic-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.classic-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.classic-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 9999px;
+}
+.classic-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
 
 /* Entity Tokens & Chips in Classic UI */
 .entity-token {
