@@ -7,7 +7,7 @@ mod logging;
 mod shortcuts;
 mod windows;
 
-use ququ_speech::{Engine, SpeechService, TranscribeOptions};
+use ququ_speech::{hub::StreamHub, native_stream::SherpaStream, Engine, SpeechService, TranscribeOptions};
 use serde_json::{json, Value};
 use std::{
     path::PathBuf,
@@ -22,6 +22,7 @@ use tauri_plugin_dialog::DialogExt;
 pub struct AppState {
     db: Mutex<database::Database>,
     speech: Arc<SpeechService>,
+    streams: Arc<StreamHub<SherpaStream>>,
     data_dir: PathBuf,
     progress: Arc<Mutex<Value>>,
     hotkeys: shortcuts::HotkeyManager,
@@ -56,6 +57,22 @@ fn selected(state: &AppState) -> Result<Engine, String> {
             .unwrap_or("sensevoice"),
     )
 }
+/// The speech language when the SenseVoice second pass is switched on (default)
+/// and its models are installed; otherwise None and streaming text is final.
+fn second_pass_language(state: &AppState, speech: &SpeechService) -> Result<Option<String>, String> {
+    let db = state.database()?;
+    if !db.get("streaming_second_pass", json!(true))?.as_bool().unwrap_or(true) {
+        return Ok(None);
+    }
+    let ready = speech.streaming_status().map_err(|e| e.to_string())?.second_pass_ready;
+    Ok(ready.then(|| {
+        db.get("speech_language", json!("zh"))
+            .ok()
+            .and_then(|v| v.as_str().map(str::to_owned))
+            .unwrap_or_else(|| "zh".into())
+    }))
+}
+
 fn value<T: serde::Serialize>(data: T) -> Result<Value, String> {
     serde_json::to_value(data).map_err(|e| e.to_string())
 }
@@ -340,6 +357,7 @@ async fn desktop_command(
         }
         "invalidate-dictation" => {
             state.indicator.invalidate_paste();
+            let _ = state.streams.cancel_all();
             Ok(json!({"success":true}))
         }
         "report-dictation-error" => {
@@ -479,6 +497,110 @@ async fn desktop_command(
                 }
                 Err(error) => Ok(json!({"success":false,"error":error})),
             }
+        }
+        "stream-status" => {
+            let speech = state.speech.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let mut data = value(speech.streaming_status().map_err(|e| e.to_string())?)?;
+                data["success"] = json!(true);
+                Ok(data)
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        }
+        "stream-download" => {
+            let speech = state.speech.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let result = speech.download_streaming_models(|event| {
+                    if let Ok(data) = serde_json::to_value(event) {
+                        let _ = app.emit("stream-download-progress", data);
+                    }
+                });
+                match result {
+                    Ok(status) => {
+                        let mut data = value(status)?;
+                        data["success"] = json!(true);
+                        Ok(data)
+                    }
+                    Err(error) => Ok(json!({"success":false,"error":error.to_string()})),
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        }
+        "stream-start" => {
+            let speech = state.speech.clone();
+            let streams = state.streams.clone();
+            let warm = second_pass_language(&state, &speech)?;
+            tauri::async_runtime::spawn_blocking(move || {
+                let started = speech.start_stream().and_then(|session| streams.start(session));
+                match started {
+                    Ok(id) => {
+                        if let Some(language) = warm {
+                            // Hide the SenseVoice load behind the recording itself.
+                            let speech = speech.clone();
+                            std::thread::spawn(move || {
+                                let _ = speech.warm_second_pass(&language);
+                            });
+                        }
+                        Ok(json!({"success":true,"session":id}))
+                    }
+                    Err(error) => Ok(json!({"success":false,"error":error.to_string()})),
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        }
+        "stream-push" => {
+            let id = arg(&args, 0).as_u64().ok_or("Invalid stream session")?;
+            let pcm: Vec<i16> =
+                serde_json::from_value(arg(&args, 1)).map_err(|e| e.to_string())?;
+            let streams = state.streams.clone();
+            tauri::async_runtime::spawn_blocking(move || match streams.push(id, &pcm) {
+                Ok(draft) => Ok(json!({"success":true,"draft":draft})),
+                Err(error) => Ok(json!({"success":false,"error":error.to_string()})),
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        }
+        "stream-finish" => {
+            let id = arg(&args, 0).as_u64().ok_or("Invalid stream session")?;
+            let language = state.database()?.get("speech_language", json!("zh"))?;
+            let language = language.as_str().unwrap_or("zh").to_owned();
+            let speech = state.speech.clone();
+            let streams = state.streams.clone();
+            let two_pass = second_pass_language(&state, &speech)?.is_some();
+            let speech_logs = state.data_dir.join("logs");
+            tauri::async_runtime::spawn_blocking(move || {
+                let outcome = streams.take(id).and_then(|mut finished| {
+                    if two_pass {
+                        speech.finish_stream_two_pass(&mut finished.session, &finished.pcm, &language)
+                    } else {
+                        let seconds = finished.seconds();
+                        speech.finish_stream(&mut finished.session, &language, seconds)
+                    }
+                });
+                match outcome {
+                    Ok(result) => {
+                        let _ = logging::speech(&speech_logs, "info", "Streaming transcription completed");
+                        value(result)
+                    }
+                    Err(error) => {
+                        let _ = logging::speech(&speech_logs, "error", &error.to_string());
+                        Ok(json!({"success":false,"error":error.to_string()}))
+                    }
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        }
+        "stream-cancel" => {
+            match args.first().and_then(Value::as_u64) {
+                Some(id) => state.streams.cancel(id),
+                None => state.streams.cancel_all(),
+            }
+            .map_err(|e| e.to_string())?;
+            Ok(json!({"success":true}))
         }
         "transcribe-audio" => {
             let bytes: Vec<u8> =
@@ -634,6 +756,7 @@ pub fn run() {
             app.manage(AppState {
                 db: Mutex::new(db),
                 speech: Arc::new(speech),
+                streams: Arc::new(StreamHub::default()),
                 data_dir: data_dir.clone(),
                 progress: Arc::new(Mutex::new(json!({"progress":0}))),
                 hotkeys,

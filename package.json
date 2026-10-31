@@ -34,6 +34,7 @@
     "test:desktop": "node --test src/desktop/*.test.mjs",
     "test:rust-ui": "node scripts/test-native-ui.cjs",
     "test:classic-layout": "node scripts/test-classic-layout.cjs",
+    "test:streaming-ui": "node scripts/test-streaming-ui.cjs",
     "test:theme": "node scripts/test-theme.cjs"
   },
   "keywords": [

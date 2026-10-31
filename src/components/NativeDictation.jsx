@@ -129,10 +129,10 @@ export default function NativeDictation() {
 
   if (!mode) return <div className="p-4 text-foreground" role="status">{error || '正在載入介面…'}</div>;
   if (mode === 'compact') return <CompactDictation isRecording={dictation.isRecording} />;
-  const { phase, result, model } = dictation;
+  const { phase, result, model, draft, canRecord } = dictation;
   const busy = phase !== 'idle', recording = phase === 'recording';
   const labels = { starting: '正在準備麥克風…', recording: '正在錄音，再次點擊停止', processing: '正在辨識語音…', optimizing: 'AI 正在最佳化文字…' };
-  const status = labels[phase] || (!model.isReady ? (model.error || '模型準備中，請稍候…') : '點擊麥克風或按已設定的快速鍵開始錄音');
+  const status = labels[phase] || (!canRecord ? (model.error || '模型準備中，請稍候…') : '點擊麥克風或按已設定的快速鍵開始錄音');
 
   return (
     <main className="native-classic text-foreground">
@@ -150,7 +150,7 @@ export default function NativeDictation() {
         <button
           type="button"
           className={`classic-mic ${recording ? 'is-recording' : ''}`}
-          disabled={['starting', 'processing', 'optimizing'].includes(phase) || !model.isReady}
+          disabled={['starting', 'processing', 'optimizing'].includes(phase) || !canRecord}
           aria-label={recording ? '停止錄音' : '開始錄音'}
           onClick={() => dictation.dispatch('toggle')}
         >
@@ -158,8 +158,15 @@ export default function NativeDictation() {
         </button>
         <p className="mt-2 text-xs text-muted-foreground status-text" role="status">{status}</p>
         {busy && <button type="button" className="text-xs mt-1.5 underline text-muted-foreground block mx-auto" onClick={() => dictation.dispatch('cancel')}>取消聽寫</button>}
-        {!model.isReady && <button type="button" className="text-xs mt-1.5 underline block mx-auto" onClick={() => run(() => api.openSettingsWindow())}>開啟模型設定</button>}
+        {!canRecord && <button type="button" className="text-xs mt-1.5 underline block mx-auto" onClick={() => run(() => api.openSettingsWindow())}>開啟模型設定</button>}
       </section>
+
+      {recording && draft && (
+        <section className="rounded-xl border border-dashed bg-secondary/40 p-3 mb-3 chinese-content flex-shrink-0 max-h-32 overflow-y-auto" aria-label="即時辨識草稿" aria-live="polite">
+          <h2 className="text-[10px] text-muted-foreground mb-1">即時辨識（草稿，停止後會定稿）</h2>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{draft}</p>
+        </section>
+      )}
 
       {(result || specialWords.length > 0) && (
         <section className="rounded-xl border bg-secondary/70 p-3.5 chinese-content relative flex-1 min-h-0 flex flex-col overflow-hidden shadow-xs" aria-label="最近一次聽寫與專有詞彙">
@@ -195,6 +202,13 @@ export default function NativeDictation() {
                 onWordClick={handleWordClick}
                 paragraphRef={sentenceRef}
               />
+
+              {result.firstPass && result.firstPass !== result.text && (
+                <details className="mt-2.5 text-xs text-muted-foreground border-t border-border/30 pt-2" aria-label="即時串流草稿">
+                  <summary className="cursor-pointer hover:text-foreground">即時串流草稿（定稿前）</summary>
+                  <p className="whitespace-pre-wrap mt-1 text-xs">{result.firstPass}</p>
+                </details>
+              )}
 
               {result.rawText && result.rawText !== result.text && (
                 <details className="mt-2.5 text-xs text-muted-foreground border-t border-border/30 pt-2">

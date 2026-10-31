@@ -28,6 +28,7 @@ const commands = {
   openHistoryWindow: 'open-history-window', closeHistoryWindow: 'close-history-window', hideHistoryWindow: 'hide-history-window',
   openSettingsWindow: 'open-settings-window', closeSettingsWindow: 'close-settings-window', hideSettingsWindow: 'hide-settings-window',
   getAvailableModels: 'get-available-models', getCurrentModel: 'get-current-model', switchModel: 'switch-model',
+  streamStatus: 'stream-status', streamDownload: 'stream-download', streamStart: 'stream-start',
   getPerformanceStats: 'get-performance-stats', clearPerformanceStats: 'clear-performance-stats',
 };
 const events = {
@@ -35,7 +36,7 @@ const events = {
   onTranscriptionUpdate: 'transcription-update', onProcessingUpdate: 'processing-update', onError: 'error',
   onSettingsUpdate: 'settings-update', onModelDownloadProgress: 'model-download-progress',
   onDictationError: 'dictation-error', onInterfaceModeChanged: 'interface-mode-changed',
-  onSpecialWordsUpdate: 'special-words-update',
+  onSpecialWordsUpdate: 'special-words-update', onStreamDownloadProgress: 'stream-download-progress',
 };
 
 export function createDesktopAPI({ invoke, listen, onListenerError = () => {} }) {
@@ -48,6 +49,9 @@ export function createDesktopAPI({ invoke, listen, onListenerError = () => {} })
       : ArrayBuffer.isView(audio) ? new Uint8Array(audio.buffer, audio.byteOffset, audio.byteLength) : audio;
     return invoke('desktop_command', { action: 'transcribe-audio', args: [Array.from(bytes), options] });
   };
+  api.streamPush = (session, pcm) => invoke('desktop_command', { action: 'stream-push', args: [session, Array.from(pcm)] });
+  api.streamFinish = session => invoke('desktop_command', { action: 'stream-finish', args: [session] });
+  api.streamCancel = session => invoke('desktop_command', { action: 'stream-cancel', args: session == null ? [] : [session] });
   for (const [method, event] of Object.entries(events)) {
     api[method] = callback => {
       let disposed = false;

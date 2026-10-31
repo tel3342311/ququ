@@ -279,7 +279,7 @@ pub(crate) fn download(
     Ok(())
 }
 
-fn copy_verified(
+pub(crate) fn copy_verified(
     reader: &mut impl Read,
     writer: &mut impl Write,
     expected_bytes: u64,
