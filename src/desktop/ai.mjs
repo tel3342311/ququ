@@ -6,7 +6,7 @@ export const GOOGLE_AI_DEFAULT_BASE_URL = 'https://generativelanguage.googleapis
 export const ALIYUN_RECOMMENDED_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 
 export const OPENAI_DEFAULT_MODEL = 'gpt-3.5-turbo';
-export const GOOGLE_AI_DEFAULT_MODEL = 'gemini-2.5-flash';
+export const GOOGLE_AI_DEFAULT_MODEL = 'gemini-3.8-flash';
 export const ALIYUN_RECOMMENDED_MODEL = 'qwen3-30b-a3b-instruct-2507';
 
 export const AI_PROVIDERS = [
@@ -24,7 +24,10 @@ export const OPENAI_PREDEFINED_MODELS = [
 ];
 
 export const GOOGLE_AI_PREDEFINED_MODELS = [
-  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (推薦)' },
+  { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash (推薦)' },
+  { value: 'gemini-3.8-pro', label: 'Gemini 3.8 Pro' },
+  { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
   { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
   { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
   { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
