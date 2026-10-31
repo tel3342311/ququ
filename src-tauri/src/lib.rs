@@ -219,6 +219,67 @@ async fn desktop_command(
                 .map_err(|e| e.to_string())?;
             Ok(result)
         }
+        "export-special-words" => {
+            let handle = app.clone();
+            let path = tauri::async_runtime::spawn_blocking(move || {
+                let file_path = handle
+                    .dialog()
+                    .file()
+                    .set_file_name("special-words.json")
+                    .add_filter("JSON (*.json)", &["json"])
+                    .blocking_save_file();
+                if let Some(fp) = file_path {
+                    fp.into_path().map_err(|e| e.to_string()).map(Some)
+                } else {
+                    Ok(None)
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())??;
+            if let Some(path) = path {
+                let content = state.database()?.export_special_words()?;
+                std::fs::write(&path, &content).map_err(|e| e.to_string())?;
+                Ok(json!({"success": true, "filePath": path.to_string_lossy().to_string()}))
+            } else {
+                Ok(json!({"success": false, "canceled": true}))
+            }
+        }
+        "import-special-words" => {
+            let handle = app.clone();
+            let picked = tauri::async_runtime::spawn_blocking(move || {
+                let file_path = handle
+                    .dialog()
+                    .file()
+                    .add_filter("JSON (*.json)", &["json"])
+                    .blocking_pick_file();
+                if let Some(fp) = file_path {
+                    fp.into_path().map_err(|e| e.to_string()).map(Some)
+                } else {
+                    Ok(None)
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())??;
+            let Some(path) = picked else {
+                return Ok(json!({"success": false, "canceled": true}));
+            };
+            let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+            let content =
+                String::from_utf8(bytes).map_err(|_| "檔案編碼必須為 UTF-8".to_string())?;
+            let file_path_str = Some(path.to_string_lossy().to_string());
+
+            let summary = state.database()?.import_special_words(&content)?;
+            let added = summary.get("added").and_then(Value::as_u64).unwrap_or(0);
+            if added > 0 {
+                app.emit("special-words-update", &summary)
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(json!({
+                "success": true,
+                "filePath": file_path_str,
+                "summary": summary
+            }))
+        }
         "hide-window" => {
             window.hide().map_err(|e| e.to_string())?;
             Ok(json!({"success":true}))

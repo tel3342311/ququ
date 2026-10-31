@@ -167,9 +167,9 @@ impl Indicator {
             .ok_or("Dictation window unavailable")?;
         Ok(())
     }
-    pub fn track_external(&self, app: &AppHandle) {
+    pub fn track_external(&self, _app: &AppHandle) {
         #[cfg(windows)]
-        if let Some(window) = app.get_webview_window("main") {
+        if let Some(window) = _app.get_webview_window("main") {
             if let Ok(hwnd) = window.hwnd() {
                 self.own.store(hwnd.0 as isize, Ordering::Release);
             }

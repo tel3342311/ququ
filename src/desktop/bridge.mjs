@@ -10,6 +10,7 @@ const commands = {
   clearAllTranscriptions: 'clear-all-transcriptions', exportTranscriptions: 'export-transcriptions',
   updateTranscription: 'update-transcription',
   getSpecialWords: 'get-special-words', saveSpecialWord: 'save-special-word', deleteSpecialWord: 'delete-special-word',
+  exportSpecialWords: 'export-special-words', importSpecialWords: 'import-special-words',
   getSettings: 'get-settings', getAllSettings: 'get-all-settings', getSetting: 'get-setting', setSetting: 'set-setting',
   saveSetting: 'save-setting', resetSettings: 'reset-settings', importSettings: 'import-settings', exportSettings: 'export-settings',
   registerHotkey: 'register-hotkey', unregisterHotkey: 'unregister-hotkey', getCurrentHotkey: 'get-current-hotkey',
