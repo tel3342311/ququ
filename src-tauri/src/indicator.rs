@@ -175,7 +175,7 @@ impl Indicator {
             }
         }
         #[cfg(not(windows))]
-        let _ = app;
+        let _ = _app;
         #[cfg(target_os = "macos")]
         self.own
             .store(std::process::id() as isize, Ordering::Release);
