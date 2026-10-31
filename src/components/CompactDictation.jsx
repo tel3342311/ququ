@@ -1,10 +1,18 @@
-import React, { useLayoutEffect } from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 
 export default function CompactDictation({ isRecording, draft = '', phase = 'idle' }) {
+  const bodyRef = useRef(null);
+
   useLayoutEffect(() => {
     document.documentElement.classList.add('compact-dictation');
     return () => document.documentElement.classList.remove('compact-dictation');
   }, []);
+
+  useLayoutEffect(() => {
+    if (bodyRef.current) {
+      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+    }
+  }, [draft]);
 
   const hasDraft = Boolean(draft && draft.trim().length > 0);
   const charCount = hasDraft ? draft.trim().length : 0;
@@ -28,11 +36,11 @@ export default function CompactDictation({ isRecording, draft = '', phase = 'idl
           </span>
         )}
       </div>
-      <div className="indicator-body">
+      <div className="indicator-body" ref={bodyRef}>
         <span className="indicator-text">
           {hasDraft ? draft : (isRecording ? '正在聆聽語音…' : '待命')}
+          {isRecording && <span className="indicator-cursor" aria-hidden="true" />}
         </span>
-        {isRecording && <span className="indicator-cursor" aria-hidden="true" />}
       </div>
       <span className="recording-label sr-only">{isRecording ? 'Recording...' : 'Idle'}</span>
     </div>

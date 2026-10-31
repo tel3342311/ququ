@@ -6,8 +6,8 @@ pub struct WorkArea {
     pub height: u32,
 }
 
-pub const WIDTH: f64 = 300.0;
-pub const HEIGHT: f64 = 56.0;
+pub const WIDTH: f64 = 320.0;
+pub const HEIGHT: f64 = 76.0;
 
 pub fn place(anchor: (i32, i32), area: WorkArea, scale: f64) -> (i32, i32) {
     let width = (WIDTH * scale).ceil() as i64;
@@ -113,8 +113,8 @@ mod tests {
             },
             1.0,
         );
-        assert!(x >= -1920 && x + 300 <= 0);
-        assert!(y >= 0 && y + 56 <= 1040);
+        assert!(x >= -1920 && x + 320 <= 0);
+        assert!(y >= 0 && y + 76 <= 1040);
     }
     #[test]
     fn uses_target_monitor_scale_at_screen_edges() {
@@ -128,8 +128,8 @@ mod tests {
             },
             2.0,
         );
-        assert!(x + 600 <= 2560);
-        assert!(y + 112 <= 0);
+        assert!(x + 640 <= 2560);
+        assert!(y + 152 <= 0);
         assert!(y >= -1440);
     }
     #[test]
