@@ -128,8 +128,8 @@ export default function NativeDictation() {
   };
 
   if (!mode) return <div className="p-4 text-foreground" role="status">{error || '正在載入介面…'}</div>;
-  if (mode === 'compact') return <CompactDictation isRecording={dictation.isRecording} />;
   const { phase, result, model, draft, canRecord } = dictation;
+  if (mode === 'compact') return <CompactDictation isRecording={dictation.isRecording} draft={draft} phase={phase} />;
   const busy = phase !== 'idle', recording = phase === 'recording';
   const labels = { starting: '正在準備麥克風…', recording: '正在錄音，再次點擊停止', processing: '正在辨識語音…', optimizing: 'AI 正在最佳化文字…' };
   const status = labels[phase] || (!canRecord ? (model.error || '模型準備中，請稍候…') : '點擊麥克風或按已設定的快速鍵開始錄音');
