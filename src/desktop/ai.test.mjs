@@ -139,6 +139,7 @@ test('builds chat/completions request for Google AI and OpenAI and parses docume
     model: 'gemini-2.5-flash',
     messages: [{ role: 'user', content: '請回覆測試成功' }],
     temperature: 0.1,
+    reasoning_effort: 'low',
     stream: false,
   });
   assert.equal('max_tokens' in googleReq.body, false, 'Google AI requests must not cap thinking+output tokens at 50');

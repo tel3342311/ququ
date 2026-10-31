@@ -62,6 +62,7 @@ fn build_request_payload(
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.3,
+            "reasoning_effort": "low",
             "stream": false
         })
     } else {

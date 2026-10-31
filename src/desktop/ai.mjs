@@ -143,7 +143,9 @@ export function buildChatCompletionRequest(config, { prompt, test = false, tempe
     temperature: temperature ?? (test ? 0.1 : 0.3),
     stream: false,
   };
-  if (!isGoogle) {
+  if (isGoogle) {
+    body.reasoning_effort = 'low';
+  } else {
     body.max_tokens = test ? 50 : 2000;
   }
   return {
