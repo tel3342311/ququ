@@ -20,6 +20,7 @@ export const OPENAI_PREDEFINED_MODELS = [
   { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
   { value: 'gpt-4o', label: 'GPT-4o' },
   { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+  { value: 'claude-haiku-5.5', label: 'Claude Haiku 5.5' },
   { value: 'qwen3-30b-a3b-instruct-2507', label: 'Qwen3-30B (推薦)' },
 ];
 
@@ -86,7 +87,7 @@ export function normalizeLoadedAISettings(allSettings = {}) {
     ai_api_key: typeof allSettings.ai_api_key === 'string' ? allSettings.ai_api_key : '',
     ai_base_url: normalizeAIBaseUrl(allSettings.ai_base_url, provider),
     ai_model: (typeof allSettings.ai_model === 'string' && allSettings.ai_model.trim()) || defaultModelForProvider(provider),
-    enable_ai_optimization: allSettings.enable_ai_optimization !== false,
+    enable_ai_optimization: allSettings.enable_ai_optimization === true,
   };
 }
 
@@ -122,7 +123,7 @@ export function resolveAIConfig(raw = {}) {
     ai_api_key: apiKey,
     ai_base_url: baseUrl,
     ai_model: model,
-    enable_ai_optimization: raw.enable_ai_optimization !== false,
+    enable_ai_optimization: raw.enable_ai_optimization === true,
   };
 }
 

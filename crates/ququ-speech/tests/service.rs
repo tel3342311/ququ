@@ -181,3 +181,46 @@ fn legacy_model_name_and_missing_options_deserialize_compatibly() {
     assert!(options.use_punc && options.use_vad);
     assert!(options.hotword.is_empty());
 }
+
+#[test]
+fn tea_asr_engine_serialization_and_artifacts() {
+    assert_eq!(
+        serde_json::from_str::<Engine>("\"tea_asr\"").unwrap(),
+        Engine::TeaAsr
+    );
+    assert_eq!(
+        serde_json::from_str::<Engine>("\"tea-asr\"").unwrap(),
+        Engine::TeaAsr
+    );
+    assert_eq!(
+        serde_json::from_str::<Engine>("\"tea-asr-1.1\"").unwrap(),
+        Engine::TeaAsr
+    );
+    assert_eq!(
+        "tea_asr".parse::<Engine>().unwrap(),
+        Engine::TeaAsr
+    );
+    assert_eq!(
+        serde_json::to_string(&Engine::TeaAsr).unwrap(),
+        "\"tea_asr\""
+    );
+
+    let models = ququ_speech::models::available_models();
+    let tea = models
+        .iter()
+        .find(|m| m.engine == Engine::TeaAsr)
+        .expect("TEA-ASR model info must exist");
+    assert_eq!(tea.name, "TEA-ASR 1.1");
+    assert_eq!(tea.variant, "int8");
+    assert!(tea.supports_builtin_punctuation);
+    assert!(!tea.supports_hotwords);
+    assert!(tea.languages.contains(&"zh".to_string()));
+    assert!(tea.languages.contains(&"en".to_string()));
+
+    let arts = ququ_speech::models::artifacts(Engine::TeaAsr);
+    assert_eq!(arts.len(), 7);
+    assert!(arts.iter().any(|a| a.relative_path.ends_with("conv_frontend.onnx")));
+    assert!(arts.iter().any(|a| a.relative_path.ends_with("encoder.int8.onnx")));
+    assert!(arts.iter().any(|a| a.relative_path.ends_with("decoder.int8.onnx")));
+    assert!(arts.iter().any(|a| a.relative_path.ends_with("tokenizer/vocab.json")));
+}

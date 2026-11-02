@@ -110,6 +110,7 @@ impl SpeechService {
     pub fn current_engine(&self) -> Engine {
         match self.selected.load(Ordering::Acquire) {
             1 => Engine::Paraformer,
+            2 => Engine::TeaAsr,
             _ => Engine::SenseVoice,
         }
     }
@@ -219,7 +220,11 @@ impl SpeechService {
             let replacement = crate::native::NativeRuntime::new(&self.root, engine, "zh")?;
             *guard = Some(replacement);
             self.selected.store(
-                if engine == Engine::Paraformer { 1 } else { 0 },
+                match engine {
+                    Engine::SenseVoice => 0,
+                    Engine::Paraformer => 1,
+                    Engine::TeaAsr => 2,
+                },
                 Ordering::Release,
             );
             self.initialized.store(true, Ordering::Release);
@@ -262,6 +267,12 @@ impl SpeechService {
             if engine == Engine::Paraformer && !["zh", "en"].contains(&options.language.as_str()) {
                 return Err(SpeechError::Unsupported(format!(
                     "Paraformer language {}",
+                    options.language
+                )));
+            }
+            if engine == Engine::TeaAsr && !["zh", "en", "auto"].contains(&options.language.as_str()) {
+                return Err(SpeechError::Unsupported(format!(
+                    "TEA-ASR language {}",
                     options.language
                 )));
             }

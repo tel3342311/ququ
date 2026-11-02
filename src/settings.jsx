@@ -38,7 +38,7 @@ const SettingsPage = () => {
     ai_api_key: "",
     ai_base_url: OPENAI_DEFAULT_BASE_URL,
     ai_model: OPENAI_DEFAULT_MODEL,
-    enable_ai_optimization: true
+    enable_ai_optimization: false
   });
   
   const [customModel, setCustomModel] = useState(false);

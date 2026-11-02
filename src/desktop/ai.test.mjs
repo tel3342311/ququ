@@ -29,7 +29,7 @@ test('preserves existing OpenAI and DashScope saved settings unchanged when load
     ai_api_key: '',
     ai_base_url: OPENAI_DEFAULT_BASE_URL,
     ai_model: OPENAI_DEFAULT_MODEL,
-    enable_ai_optimization: true,
+    enable_ai_optimization: false,
   });
 
   const savedOpenAI = normalizeLoadedAISettings({
@@ -46,15 +46,18 @@ test('preserves existing OpenAI and DashScope saved settings unchanged when load
     enable_ai_optimization: false,
   });
   assert.equal(isPredefinedModel(savedOpenAI.ai_model, savedOpenAI.ai_provider), true);
+  assert.equal(isPredefinedModel('claude-haiku-5.5', AI_PROVIDER_OPENAI), true);
 
   const savedDashScope = normalizeLoadedAISettings({
     ai_api_key: 'sk-dashscope-test',
     ai_base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     ai_model: 'qwen3-30b-a3b-instruct-2507',
+    enable_ai_optimization: true,
   });
   assert.equal(savedDashScope.ai_provider, AI_PROVIDER_OPENAI);
   assert.equal(savedDashScope.ai_base_url, 'https://dashscope.aliyuncs.com/compatible-mode/v1');
   assert.equal(savedDashScope.ai_model, 'qwen3-30b-a3b-instruct-2507');
+  assert.equal(savedDashScope.enable_ai_optimization, true);
 });
 
 test('recognizes Google AI settings by provider or base URL and normalizes trailing slashes', () => {
@@ -80,6 +83,7 @@ test('recognizes Google AI settings by provider or base URL and normalizes trail
     ai_api_key: 'AIzaSyTestKey',
     ai_base_url: 'https://generativelanguage.googleapis.com/v1beta/openai/',
     ai_model: 'gemini-2.5-flash',
+    enable_ai_optimization: true,
   });
   assert.deepEqual(loadedGoogle, {
     ai_provider: AI_PROVIDER_GOOGLE,

@@ -5,8 +5,8 @@ use crate::{
 };
 use sherpa_onnx::{
     LinearResampler, OfflineParaformerModelConfig, OfflinePunctuation, OfflinePunctuationConfig,
-    OfflineRecognizer, OfflineRecognizerConfig, OfflineSenseVoiceModelConfig, SileroVadModelConfig,
-    VadModelConfig, VoiceActivityDetector,
+    OfflineQwen3ASRModelConfig, OfflineRecognizer, OfflineRecognizerConfig,
+    OfflineSenseVoiceModelConfig, SileroVadModelConfig, VadModelConfig, VoiceActivityDetector,
 };
 use std::path::Path;
 
@@ -44,6 +44,21 @@ impl NativeRuntime {
                     model: Some(filename(models::PARA_MODEL.relative_path)?),
                 };
                 config.model_config.tokens = Some(filename(models::PARA_TOKENS.relative_path)?);
+            }
+            Engine::TeaAsr => {
+                let tokenizer_dir = models::artifact_path(root, "tea-asr-1.1-int8/tokenizer")?;
+                config.model_config.qwen3_asr = OfflineQwen3ASRModelConfig {
+                    conv_frontend: Some(filename(models::TEA_CONV.relative_path)?),
+                    encoder: Some(filename(models::TEA_ENCODER.relative_path)?),
+                    decoder: Some(filename(models::TEA_DECODER.relative_path)?),
+                    tokenizer: Some(
+                        tokenizer_dir
+                            .to_str()
+                            .ok_or_else(|| SpeechError::Inference("model path is not valid Unicode".into()))?
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                };
             }
         }
         let recognizer = OfflineRecognizer::create(&config)
@@ -119,7 +134,7 @@ impl NativeRuntime {
             })?;
             Ok(result.text.trim().to_owned())
         };
-        if self.engine == Engine::SenseVoice && options.use_vad {
+        if (self.engine == Engine::SenseVoice || self.engine == Engine::TeaAsr) && options.use_vad {
             self.vad.reset();
             for chunk in samples.chunks(512) {
                 self.vad.accept_waveform(chunk);
@@ -137,7 +152,7 @@ impl NativeRuntime {
                 }
                 self.vad.pop();
             }
-        } else if self.engine == Engine::SenseVoice {
+        } else if self.engine == Engine::SenseVoice || self.engine == Engine::TeaAsr {
             for bounded in audio::bounded_segments(&samples, 16000, 30)? {
                 pieces.push(decode(bounded)?);
             }

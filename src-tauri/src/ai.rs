@@ -162,11 +162,72 @@ pub async fn complete(config: Value, text: &str, mode: &str, test: bool) -> Resu
         parse_completion_body(status.as_u16(), status.is_success(), &body, &model, test)?;
     if !test {
         let language = config["speech_language"].as_str().unwrap_or("zh");
-        if let Some(text) = result["text"].as_str() {
-            result["text"] = json!(ququ_speech::convert_for_language(text, language));
+        if let Some(out_text) = result["text"].as_str() {
+            let validated = validate_output_safety(text, out_text)?;
+            result["text"] = json!(ququ_speech::convert_for_language(&validated, language));
         }
     }
     Ok(result)
+}
+
+pub fn strip_think_tags(text: &str) -> Result<String, String> {
+    let lower = text.to_ascii_lowercase();
+    if let Some(start) = lower.find("<think>") {
+        if let Some(end_offset) = lower[start..].find("</think>") {
+            let end = start + end_offset + "</think>".len();
+            let stripped = format!("{}{}", &text[..start], &text[end..]);
+            return strip_think_tags(stripped.trim());
+        } else {
+            let prefix = text[..start].trim();
+            if prefix.is_empty() {
+                return Err("AI 輸出包含未結束的 <think> 標籤且無有效內容".to_string());
+            }
+            return Ok(prefix.to_string());
+        }
+    }
+    if lower.contains("</think>") {
+        return Err("AI 輸出包含未成對的 </think> 標籤".to_string());
+    }
+    Ok(text.trim().to_string())
+}
+
+pub fn extract_number_literals(text: &str) -> Vec<String> {
+    let mut numbers = Vec::new();
+    let mut current = String::new();
+    for ch in text.chars() {
+        if ch.is_ascii_digit() || (ch == '.' && !current.is_empty() && !current.contains('.')) {
+            current.push(ch);
+        } else {
+            if !current.is_empty() {
+                let trimmed = current.trim_end_matches('.');
+                if !trimmed.is_empty() && trimmed.chars().any(|c| c.is_ascii_digit()) {
+                    numbers.push(trimmed.to_string());
+                }
+                current.clear();
+            }
+        }
+    }
+    if !current.is_empty() {
+        let trimmed = current.trim_end_matches('.');
+        if !trimmed.is_empty() && trimmed.chars().any(|c| c.is_ascii_digit()) {
+            numbers.push(trimmed.to_string());
+        }
+    }
+    numbers
+}
+
+pub fn validate_output_safety(input: &str, output: &str) -> Result<String, String> {
+    let cleaned = strip_think_tags(output)?;
+    if cleaned.is_empty() {
+        return Err("AI 最佳化輸出為空".to_string());
+    }
+    let input_numbers = extract_number_literals(input);
+    for num in &input_numbers {
+        if !cleaned.contains(num) {
+            return Err(format!("AI 最佳化遺漏或竄改了輸入中的數值字面量: '{num}'"));
+        }
+    }
+    Ok(cleaned)
 }
 
 #[cfg(test)]
@@ -351,5 +412,47 @@ mod tests {
             ququ_speech::convert_for_language("図書館で勉強する", "ja"),
             "図書館で勉強する"
         );
+    }
+
+    #[test]
+    fn safety_validation_strips_think_tags_and_rejects_empty_or_broken_tags() {
+        // Normal stripping
+        let with_think = "<think>\nThinking about the text...\n</think>\n這是最佳化後的句子。";
+        assert_eq!(
+            strip_think_tags(with_think).unwrap(),
+            "這是最佳化後的句子。"
+        );
+
+        // Multiple think tags
+        let multiple = "<think>first</think>中間文字<think>second</think>結尾。";
+        assert_eq!(strip_think_tags(multiple).unwrap(), "中間文字結尾。");
+
+        // Lone closing tag
+        assert!(strip_think_tags("孤立標籤</think>").is_err());
+
+        // Think only -> empty result fails safety validation
+        let think_only = "<think>只有思考沒有輸出</think>";
+        assert!(validate_output_safety("測試", think_only).is_err());
+    }
+
+    #[test]
+    fn safety_validation_ensures_input_numbers_and_literals_are_preserved() {
+        let input = "訂單編號 9527，請在 2026 年 11 月 3 日前送達 100 件產品。";
+        let preserved_output = "<think>保留所有數字</think>訂單編號 9527，請於 2026 年 11 月 3 日前送達 100 件產品。";
+        let valid = validate_output_safety(input, preserved_output).unwrap();
+        assert_eq!(
+            valid,
+            "訂單編號 9527，請於 2026 年 11 月 3 日前送達 100 件產品。"
+        );
+
+        // Tampered number (9527 -> 9528)
+        let corrupted_number = "訂單編號 9528，請於 2026 年 11 月 3 日前送達 100 件產品。";
+        let err = validate_output_safety(input, corrupted_number).unwrap_err();
+        assert!(err.contains("9527"));
+
+        // Dropped number (100 missing)
+        let dropped_number = "訂單編號 9527，請於 2026 年 11 月 3 日前送達產品。";
+        let err2 = validate_output_safety(input, dropped_number).unwrap_err();
+        assert!(err2.contains("100"));
     }
 }

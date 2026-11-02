@@ -38,12 +38,14 @@ export default function NativeSpeechSettings() {
     <h2 className="text-lg font-semibold">本機語音引擎</h2>
     <p className="text-sm text-muted-foreground">模型在本機執行。先下載目標模型，再切換；初始化失敗時保留原來的引擎。</p>
     <label className="block">辨識模型<select disabled={busy} value={engine} onChange={e => { setEngine(e.target.value); if (!languagesForEngine(e.target.value).includes(language)) setLanguage('zh'); }} className="mt-1 block w-full rounded border p-2 bg-background text-foreground">
-      <option value="sense_voice">SenseVoiceSmall INT8（中 / 粵 / 英 / 日 / 韓）</option><option value="paraformer">Paraformer（中 / 英）</option>
+      <option value="sense_voice">SenseVoiceSmall INT8（中 / 粵 / 英 / 日 / 韓）</option>
+      <option value="tea_asr">TEA-ASR 1.1 INT8（台灣華語精準辨識）</option>
+      <option value="paraformer">Paraformer（中 / 英）</option>
     </select></label>
     <label className="block">語言<select disabled={busy} value={language} onChange={e => setLanguage(e.target.value)} className="mt-1 block w-full rounded border p-2 bg-background text-foreground">
       {[['zh','中文'],['auto','自動'],['yue','粵語'],['en','英文'],['ja','日文'],['ko','韓文']].filter(([value]) => languagesForEngine(engine).includes(value)).map(([value,label]) => <option key={value} value={value}>{label}</option>)}
     </select></label>
-    <label className="flex items-center gap-2"><input disabled={busy} type="checkbox" checked={normalization} onChange={e => setNormalization(e.target.checked)} />{engine === 'sense_voice' ? '標點符號與文字正規化（SenseVoice）' : '還原標點'}</label>
+    <label className="flex items-center gap-2"><input disabled={busy} type="checkbox" checked={normalization} onChange={e => setNormalization(e.target.checked)} />{engine === 'paraformer' ? '還原標點' : '標點符號與文字正規化'}</label>
     <div className="flex flex-wrap gap-3"><button disabled={busy} onClick={() => apply(true)} className="rounded bg-blue-600 text-white px-4 py-2 disabled:opacity-50">下載並切換</button><button disabled={busy} onClick={() => apply(false)} className="rounded border px-4 py-2 disabled:opacity-50">使用已下載模型</button></div>
     <p role="status" className="text-sm break-words">{status}</p>
   </section>;
