@@ -13,7 +13,11 @@ export default function NativeSpeechSettings() {
     let active = true;
     api.getAllSettings().then(values => {
       if (!active) return;
-      setEngine(values.speech_engine === 'sensevoice' ? 'sense_voice' : values.speech_engine || 'sense_voice');
+      const raw = values.speech_engine;
+      const normalized = raw === 'sensevoice' ? 'sense_voice'
+        : (raw === 'tea-asr' || raw === 'tea_asr_1_1' || raw === 'tea-asr-1.1') ? 'tea_asr'
+        : raw || 'sense_voice';
+      setEngine(normalized);
       setLanguage(values.speech_language || 'zh');
       setNormalization(values.sensevoice_use_itn !== false);
     }).catch(error => { if (active) setStatus(error.message || String(error)); });

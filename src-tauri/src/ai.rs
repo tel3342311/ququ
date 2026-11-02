@@ -222,8 +222,9 @@ pub fn validate_output_safety(input: &str, output: &str) -> Result<String, Strin
         return Err("AI 最佳化輸出為空".to_string());
     }
     let input_numbers = extract_number_literals(input);
+    let output_numbers = extract_number_literals(&cleaned);
     for num in &input_numbers {
-        if !cleaned.contains(num) {
+        if !output_numbers.contains(num) {
             return Err(format!("AI 最佳化遺漏或竄改了輸入中的數值字面量: '{num}'"));
         }
     }
@@ -454,5 +455,11 @@ mod tests {
         let dropped_number = "訂單編號 9527，請於 2026 年 11 月 3 日前送達產品。";
         let err2 = validate_output_safety(input, dropped_number).unwrap_err();
         assert!(err2.contains("100"));
+
+        // Substring collision: input has 3, output changed 3 to 4 but still contains 300
+        let collision_input = "買 3 顆蘋果，共 300 元。";
+        let collision_corrupted = "買 4 顆蘋果，共 300 元。";
+        let err3 = validate_output_safety(collision_input, collision_corrupted).unwrap_err();
+        assert!(err3.contains("3"));
     }
 }

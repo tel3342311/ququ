@@ -224,3 +224,18 @@ fn tea_asr_engine_serialization_and_artifacts() {
     assert!(arts.iter().any(|a| a.relative_path.ends_with("decoder.int8.onnx")));
     assert!(arts.iter().any(|a| a.relative_path.ends_with("tokenizer/vocab.json")));
 }
+
+#[test]
+fn tea_asr_service_status_and_missing_models() {
+    let dir = tempfile::tempdir().unwrap();
+    let service = SpeechService::new(dir.path()).unwrap();
+    let status = service.status(Engine::TeaAsr).unwrap();
+    assert!(!status.models_downloaded);
+    assert!(!status.initialized);
+    assert_eq!(status.engine, Engine::TeaAsr);
+    assert_eq!(status.missing_models.len(), 7);
+    assert!(status.missing_models.iter().any(|m| m.contains("conv_frontend.onnx")));
+    assert!(status.missing_models.iter().any(|m| m.contains("encoder.int8.onnx")));
+    assert!(status.missing_models.iter().any(|m| m.contains("decoder.int8.onnx")));
+    assert!(status.missing_models.iter().any(|m| m.contains("silero_vad.onnx")));
+}

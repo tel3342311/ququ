@@ -20,3 +20,9 @@ test('Paraformer choices exclude languages that native inference rejects', () =>
   assert.deepEqual(languagesForEngine('paraformer'), ['zh','en']);
   assert.ok(languagesForEngine('sense_voice').includes('auto'));
 });
+test('TEA-ASR choices match supported languages and engine aliases', () => {
+  assert.deepEqual(languagesForEngine('tea_asr'), ['zh', 'auto', 'en']);
+  assert.deepEqual(languagesForEngine('tea-asr'), ['zh', 'auto', 'en']);
+  assert.deepEqual(languagesForEngine('tea_asr_1_1'), ['zh', 'auto', 'en']);
+  assert.deepEqual(languagesForEngine('tea-asr-1.1'), ['zh', 'auto', 'en']);
+});
