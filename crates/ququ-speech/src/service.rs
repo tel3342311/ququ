@@ -441,9 +441,9 @@ impl SpeechService {
             Ok(None) => streaming
                 .warnings
                 .push("Second pass heard no speech; kept the streaming text".into()),
-            Err(error) => streaming
-                .warnings
-                .push(format!("Second pass failed; kept the streaming text: {error}")),
+            Err(error) => streaming.warnings.push(format!(
+                "Second pass failed; kept the streaming text: {error}"
+            )),
         }
         Ok(streaming)
     }
@@ -465,7 +465,10 @@ impl SpeechService {
             .second_pass
             .lock()
             .map_err(|_| SpeechError::StatePoisoned)?;
-        if guard.as_ref().is_none_or(|runtime| runtime.language != language) {
+        if guard
+            .as_ref()
+            .is_none_or(|runtime| runtime.language != language)
+        {
             *guard = Some(crate::native::NativeRuntime::new(
                 &self.root,
                 Engine::SenseVoice,

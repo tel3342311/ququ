@@ -14,9 +14,15 @@ fn main() {
     }
     let service = SpeechService::new(&root).unwrap();
     let status = service.streaming_status().unwrap();
-    println!("installed={} missing={:?}", status.installed, status.missing);
+    println!(
+        "installed={} missing={:?}",
+        status.installed, status.missing
+    );
     let mut reader = hound::WavReader::open(&args[2]).unwrap();
-    let samples: Vec<f32> = reader.samples::<i16>().map(|s| s.unwrap() as f32 / 32768.0).collect();
+    let samples: Vec<f32> = reader
+        .samples::<i16>()
+        .map(|s| s.unwrap() as f32 / 32768.0)
+        .collect();
     let started = std::time::Instant::now();
     let mut session = service.start_stream().unwrap();
     println!("model load + session: {} ms", started.elapsed().as_millis());
@@ -25,8 +31,13 @@ fn main() {
             println!("draft: {draft}");
         }
     }
-    let result = service.finish_stream(&mut session, "zh", samples.len() as f64 / 16000.0).unwrap();
-    println!("FINAL text={} | raw={} | warnings={:?}", result.text, result.raw_text, result.warnings);
+    let result = service
+        .finish_stream(&mut session, "zh", samples.len() as f64 / 16000.0)
+        .unwrap();
+    println!(
+        "FINAL text={} | raw={} | warnings={:?}",
+        result.text, result.raw_text, result.warnings
+    );
     let second = std::time::Instant::now();
     let mut again = service.start_stream().unwrap();
     println!("second session start: {} ms", second.elapsed().as_millis());

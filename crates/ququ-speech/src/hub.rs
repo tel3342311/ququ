@@ -153,7 +153,10 @@ mod tests {
     fn push_returns_draft_and_take_returns_session_and_duration() {
         let hub = StreamHub::default();
         let id = hub.start(session()).unwrap();
-        assert_eq!(hub.push(id, &[0; 8000]).unwrap().as_deref(), Some("8000 samples"));
+        assert_eq!(
+            hub.push(id, &[0; 8000]).unwrap().as_deref(),
+            Some("8000 samples")
+        );
         let mut taken = hub.take(id).unwrap();
         assert_eq!(taken.seconds(), 0.5);
         assert_eq!(taken.pcm.len(), 8000);
@@ -206,7 +209,10 @@ mod tests {
         let hub = StreamHub::default();
         let id = hub.start(session()).unwrap();
         assert!(hub.push(id, &vec![0; MAX_CHUNK_SAMPLES + 1]).is_err());
-        assert!(hub.push(id, &[0; 10]).is_ok(), "oversize must not kill the session");
+        assert!(
+            hub.push(id, &[0; 10]).is_ok(),
+            "oversize must not kill the session"
+        );
         let chunk = vec![0i16; MAX_CHUNK_SAMPLES];
         let mut result = Ok(None);
         for _ in 0..(MAX_SESSION_SAMPLES / MAX_CHUNK_SAMPLES as u64 + 1) {
