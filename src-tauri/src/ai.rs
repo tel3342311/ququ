@@ -251,6 +251,12 @@ const SELF_CORRECTION_MARKERS: &[&str] = &[
     "更准确地说",
 ];
 
+const CLAUSE_BREAKS: [char; 11] = ['，', ',', '、', '。', '！', '？', '!', '?', '；', ';', '\n'];
+
+fn is_soft(c: char) -> bool {
+    !c.is_alphanumeric() || ['呃', '嗯', '啊'].contains(&c)
+}
+
 fn corrected_away(
     input: &str,
     number: &NumberLiteral,
@@ -258,23 +264,37 @@ fn corrected_away(
     output_values: &[String],
 ) -> bool {
     let rest = &input[number.end..];
-    let Some(marker) = SELF_CORRECTION_MARKERS
+    let Some((marker, marker_len)) = SELF_CORRECTION_MARKERS
         .iter()
-        .filter_map(|marker| rest.find(marker))
+        .filter_map(|marker| rest.find(marker).map(|at| (at, marker.len())))
         .min()
     else {
         return false;
     };
-    if rest[..marker].contains(['。', '！', '？', '!', '?', '\n']) {
+    let gap = &rest[..marker];
+    if gap.contains(['。', '！', '？', '!', '?', '\n']) {
         return false;
     }
-    let marker_offset = number.end + marker;
-    !input_numbers
-        .iter()
-        .any(|other| other.start >= number.end && other.start < marker_offset)
-        && input_numbers
-            .iter()
-            .any(|later| later.start > marker_offset && output_values.contains(&later.value))
+    let mut gap_chars = gap.chars().peekable();
+    let mut unit_len = 0;
+    while let Some(&c) = gap_chars.peek() {
+        if unit_len == 2 || is_soft(c) || c.is_ascii_digit() {
+            break;
+        }
+        unit_len += 1;
+        gap_chars.next();
+    }
+    if !gap_chars.all(is_soft) {
+        return false;
+    }
+    let after = rest[marker + marker_len..].trim_start_matches(is_soft);
+    let clause_start = input.len() - after.len();
+    let clause_end = clause_start + after.find(CLAUSE_BREAKS).unwrap_or(after.len());
+    input_numbers.iter().any(|later| {
+        later.start >= clause_start
+            && later.start < clause_end
+            && output_values.contains(&later.value)
+    })
 }
 
 pub fn validate_output_safety(input: &str, output: &str) -> Result<String, String> {
@@ -558,5 +578,13 @@ mod tests {
             validate_output_safety("房間5，請記下來。會議定在3號，不對，是4號", "會議定在4號")
                 .is_err()
         );
+        assert!(validate_output_safety("庫存3箱，數量不對，請補4箱", "請補4箱").is_err());
+        assert!(validate_output_safety(
+            "訂單3已出貨，客戶說包裝不對，退貨單號4",
+            "已出貨，客戶說包裝不對，退貨單號4"
+        )
+        .is_err());
+        assert!(validate_output_safety("定在3號不對，下週再談，是4號", "下週再談，是4號").is_err());
+        assert!(validate_output_safety("共1000元，呃不對，是1200元", "共1,200元").is_ok());
     }
 }
