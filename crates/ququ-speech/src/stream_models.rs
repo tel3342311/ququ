@@ -141,7 +141,7 @@ pub(crate) fn download(
         let client = reqwest::blocking::Client::builder()
             .https_only(true)
             .connect_timeout(Duration::from_secs(30))
-            .timeout(Duration::from_secs(3600))
+            .timeout(Duration::from_secs(60))
             .user_agent("QuQu/0.1 native-model-downloader")
             .build()?;
         let response = client.get(archive.url).send()?.error_for_status()?;

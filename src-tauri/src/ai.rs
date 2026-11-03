@@ -191,29 +191,90 @@ pub fn strip_think_tags(text: &str) -> Result<String, String> {
     Ok(text.trim().to_string())
 }
 
-pub fn extract_number_literals(text: &str) -> Vec<String> {
+struct NumberLiteral {
+    start: usize,
+    end: usize,
+    value: String,
+}
+
+fn number_literals(text: &str) -> Vec<NumberLiteral> {
+    let chars: Vec<(usize, char)> = text.char_indices().collect();
+    let digit_at = |i: usize| chars.get(i).is_some_and(|(_, c)| c.is_ascii_digit());
     let mut numbers = Vec::new();
-    let mut current = String::new();
-    for ch in text.chars() {
-        if ch.is_ascii_digit() || (ch == '.' && !current.is_empty() && !current.contains('.')) {
-            current.push(ch);
-        } else {
-            if !current.is_empty() {
-                let trimmed = current.trim_end_matches('.');
-                if !trimmed.is_empty() && trimmed.chars().any(|c| c.is_ascii_digit()) {
-                    numbers.push(trimmed.to_string());
-                }
-                current.clear();
+    let mut i = 0;
+    while i < chars.len() {
+        if !digit_at(i) {
+            i += 1;
+            continue;
+        }
+        let start = chars[i].0;
+        let mut value = String::new();
+        let mut seen_dot = false;
+        while i < chars.len() {
+            let ch = chars[i].1;
+            if ch.is_ascii_digit() {
+                value.push(ch);
+            } else if ch == ',' && !seen_dot && (1..=3).all(|k| digit_at(i + k)) && !digit_at(i + 4)
+            {
+            } else if ch == '.' && !seen_dot && digit_at(i + 1) {
+                value.push(ch);
+                seen_dot = true;
+            } else {
+                break;
             }
+            i += 1;
         }
-    }
-    if !current.is_empty() {
-        let trimmed = current.trim_end_matches('.');
-        if !trimmed.is_empty() && trimmed.chars().any(|c| c.is_ascii_digit()) {
-            numbers.push(trimmed.to_string());
+        if seen_dot {
+            value = value
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string();
         }
+        let end = chars.get(i).map_or(text.len(), |(offset, _)| *offset);
+        numbers.push(NumberLiteral { start, end, value });
     }
     numbers
+}
+
+const SELF_CORRECTION_MARKERS: &[&str] = &[
+    "不對",
+    "不对",
+    "說錯",
+    "说错",
+    "講錯",
+    "讲错",
+    "更正",
+    "我是說",
+    "我是说",
+    "我的意思是",
+    "更準確地說",
+    "更准确地说",
+];
+
+fn corrected_away(
+    input: &str,
+    number: &NumberLiteral,
+    input_numbers: &[NumberLiteral],
+    output_values: &[String],
+) -> bool {
+    let rest = &input[number.end..];
+    let Some(marker) = SELF_CORRECTION_MARKERS
+        .iter()
+        .filter_map(|marker| rest.find(marker))
+        .min()
+    else {
+        return false;
+    };
+    if rest[..marker].contains(['。', '！', '？', '!', '?', '\n']) {
+        return false;
+    }
+    let marker_offset = number.end + marker;
+    !input_numbers
+        .iter()
+        .any(|other| other.start >= number.end && other.start < marker_offset)
+        && input_numbers
+            .iter()
+            .any(|later| later.start > marker_offset && output_values.contains(&later.value))
 }
 
 pub fn validate_output_safety(input: &str, output: &str) -> Result<String, String> {
@@ -221,11 +282,19 @@ pub fn validate_output_safety(input: &str, output: &str) -> Result<String, Strin
     if cleaned.is_empty() {
         return Err("AI 最佳化輸出為空".to_string());
     }
-    let input_numbers = extract_number_literals(input);
-    let output_numbers = extract_number_literals(&cleaned);
-    for num in &input_numbers {
-        if !output_numbers.contains(num) {
-            return Err(format!("AI 最佳化遺漏或竄改了輸入中的數值字面量: '{num}'"));
+    let input_numbers = number_literals(input);
+    let output_values: Vec<String> = number_literals(&cleaned)
+        .into_iter()
+        .map(|number| number.value)
+        .collect();
+    for number in &input_numbers {
+        if !output_values.contains(&number.value)
+            && !corrected_away(input, number, &input_numbers, &output_values)
+        {
+            return Err(format!(
+                "AI 最佳化遺漏或竄改了輸入中的數值字面量: '{}'",
+                number.value
+            ));
         }
     }
     Ok(cleaned)
@@ -439,7 +508,8 @@ mod tests {
     #[test]
     fn safety_validation_ensures_input_numbers_and_literals_are_preserved() {
         let input = "訂單編號 9527，請在 2026 年 11 月 3 日前送達 100 件產品。";
-        let preserved_output = "<think>保留所有數字</think>訂單編號 9527，請於 2026 年 11 月 3 日前送達 100 件產品。";
+        let preserved_output =
+            "<think>保留所有數字</think>訂單編號 9527，請於 2026 年 11 月 3 日前送達 100 件產品。";
         let valid = validate_output_safety(input, preserved_output).unwrap();
         assert_eq!(
             valid,
@@ -461,5 +531,32 @@ mod tests {
         let collision_corrupted = "買 4 顆蘋果，共 300 元。";
         let err3 = validate_output_safety(collision_input, collision_corrupted).unwrap_err();
         assert!(err3.contains("3"));
+    }
+
+    #[test]
+    fn safety_validation_accepts_equivalent_number_formatting() {
+        assert!(validate_output_safety("共 1000 元", "共 1,000 元。").is_ok());
+        assert!(validate_output_safety("共 1,000 元", "共 1000 元。").is_ok());
+        assert!(validate_output_safety("增加 3.5 倍", "增加 3.50 倍。").is_ok());
+        assert!(validate_output_safety("增加 3.0 倍", "增加 3 倍。").is_ok());
+        assert!(validate_output_safety("共 1000 元", "共 1,001 元。").is_err());
+        assert!(validate_output_safety("增加 3.5 倍", "增加 3.05 倍。").is_err());
+        assert!(validate_output_safety("編號 1,2345", "編號 12345").is_err());
+    }
+
+    #[test]
+    fn safety_validation_allows_numbers_removed_by_self_correction() {
+        assert_eq!(
+            validate_output_safety("會議定在3號，呃不對，是4號", "會議定在4號").unwrap(),
+            "會議定在4號"
+        );
+        assert!(validate_output_safety("會議定在3號，呃不對，是4號", "會議定在3號").is_err());
+        assert!(validate_output_safety("會議定在3號，呃不對，是週四", "會議定在週四").is_err());
+        assert!(validate_output_safety("買3顆。不對，我說錯了是4顆", "我說錯了是4顆").is_err());
+        assert!(validate_output_safety("房間5，會議定在3號，不對，是4號", "會議定在4號").is_err());
+        assert!(
+            validate_output_safety("房間5，請記下來。會議定在3號，不對，是4號", "會議定在4號")
+                .is_err()
+        );
     }
 }

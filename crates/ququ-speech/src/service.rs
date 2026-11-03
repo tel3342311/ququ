@@ -270,9 +270,9 @@ impl SpeechService {
                     options.language
                 )));
             }
-            if engine == Engine::TeaAsr && !["zh", "en", "auto"].contains(&options.language.as_str()) {
+            if engine == Engine::TeaAsr && options.language != "zh" {
                 return Err(SpeechError::Unsupported(format!(
-                    "TEA-ASR language {}",
+                    "Qwen3-ASR language {}",
                     options.language
                 )));
             }

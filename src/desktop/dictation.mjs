@@ -22,7 +22,7 @@ export async function finishDictation(api,audio,{isCurrent=()=>true,onPhase=()=>
   } catch { /* proceed without pairs if fetching fails */ }
   if(!isCurrent())return cancelled();
   let finalText=applySpecialWords(recognized, specialWords),processedText=null;
-  const useAI=await api.getSetting('enable_ai_optimization',false);
+  const useAI=await api.getSetting('enable_ai_optimization',true);
   if(!isCurrent())return cancelled();
   if(useAI) {
     onPhase('optimizing');

@@ -19,6 +19,6 @@ export function applyModelReady(previous, data) {
 
 export function languagesForEngine(engine) {
   if (engine === 'paraformer') return ['zh', 'en'];
-  if (engine === 'tea_asr' || engine === 'tea-asr' || engine === 'tea_asr_1_1' || engine === 'tea-asr-1.1') return ['zh', 'auto', 'en'];
+  if (engine === 'tea_asr') return ['zh'];
   return ['zh', 'auto', 'yue', 'en', 'ja', 'ko'];
 }
