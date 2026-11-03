@@ -504,6 +504,52 @@ mod tests {
         );
     }
 
+    fn complete_with_mock_reply(input: &str, reply: &str) -> Result<Value, String> {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let body = json!({"choices":[{"message":{"content":reply}}]}).to_string();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 16384];
+            let _ = stream.read(&mut buf).unwrap();
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream.write_all(response.as_bytes()).unwrap();
+        });
+        let config = json!({
+            "ai_api_key": "test-key",
+            "ai_base_url": format!("http://{addr}/v1"),
+            "ai_model": "test-model",
+            "speech_language": "zh"
+        });
+        let result = tauri::async_runtime::block_on(complete(config, input, "optimize", false));
+        server.join().unwrap();
+        result
+    }
+
+    #[test]
+    fn ai_complete_applies_safety_guard_to_model_replies() {
+        let ok = complete_with_mock_reply(
+            "呃訂單編號 9527 要送 100 件",
+            "<think>先去掉贅字</think>\n訂單編號 9527 要送 100 件。",
+        )
+        .unwrap();
+        assert_eq!(ok["text"], "訂單編號 9527 要送 100 件。");
+
+        let input = "訂單編號 9527 要送 100 件";
+        let dropped = complete_with_mock_reply(input, "訂單編號 9527 要送貨。").unwrap_err();
+        assert!(dropped.contains("100"), "{dropped}");
+
+        assert!(complete_with_mock_reply("測試", "<think>只有思考").is_err());
+
+        let input = "會議定在3號，呃不對，是4號";
+        let corrected = complete_with_mock_reply(input, "會議定在4號。").unwrap();
+        assert_eq!(corrected["text"], "會議定在4號。");
+    }
+
     #[test]
     fn safety_validation_strips_think_tags_and_rejects_empty_or_broken_tags() {
         // Normal stripping
