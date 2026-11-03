@@ -275,7 +275,7 @@ fn corrected_away(
     if gap.contains(['。', '！', '？', '!', '?', '\n']) {
         return false;
     }
-    let mut gap_chars = gap.chars().peekable();
+    let mut gap_chars = gap.trim_start().chars().peekable();
     let mut unit_len = 0;
     while let Some(&c) = gap_chars.peek() {
         if unit_len == 2 || is_soft(c) || c.is_ascii_digit() {
@@ -578,6 +578,8 @@ mod tests {
             validate_output_safety("房間5，請記下來。會議定在3號，不對，是4號", "會議定在4號")
                 .is_err()
         );
+        assert!(validate_output_safety("會議定在 3 號，呃不對，是 4 號", "會議定在 4 號").is_ok());
+        assert!(validate_output_safety("庫存 3 箱，數量不對，請補 4 箱", "請補 4 箱").is_err());
         assert!(validate_output_safety("庫存3箱，數量不對，請補4箱", "請補4箱").is_err());
         assert!(validate_output_safety(
             "訂單3已出貨，客戶說包裝不對，退貨單號4",
