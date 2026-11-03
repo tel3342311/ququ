@@ -1,6 +1,6 @@
 # Deploy QuQu on Windows and macOS
 
-This guide packages the **Rust/Tauri + React application** with native SenseVoice/Paraformer recognition. End users do not need Node.js, Rust, Python, or Electron. Speech models are downloaded separately through the app.
+This guide packages the **Rust/Tauri + React application** with native local speech recognition. End users do not need Node.js, Rust, Python, or Electron. Speech models are downloaded separately through the app.
 
 Run commands from the repository root. Build Windows installers on Windows and macOS bundles on a Mac. Do not use the old `build:win`, `build:mac`, `dist`, or `prepare:python` scripts for this version: those belong to the Electron/Python application.
 
@@ -195,7 +195,7 @@ Compact samples the mouse position when recording starts and stays fixed there u
 | Models | `models/sherpa-onnx` under app data | Same |
 | Logs | `logs` under app data | Same |
 
-SenseVoice requires about 240 MB; optional Paraformer with punctuation requires about 1.1 GB. Model files are verified against pinned sizes and SHA-256 hashes. After downloading, local recognition works without a cloud API. Optional AI optimization still requires its configured service/network.
+Supported engines and their download sizes are listed in [Rust desktop development](rust-desktop.md). Model files are verified against pinned sizes and SHA-256 hashes. After downloading, local recognition works without a cloud API. Optional AI optimization still requires its configured service/network.
 
 Keep user models and the database outside the installer. Do not redistribute your own database or API credentials. Quit the app before backing up the entire app-data folder or installing an upgrade. Keep the same app identity and data directory between versions; increment the release version consistently in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`.
 

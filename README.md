@@ -263,7 +263,7 @@ uv sync  # 會自動下載 Python 3.11
 本專案採用 [Apache License 2.0](LICENSE) 授權條款。
 # Rust / Tauri 遷移與 Release 打包
 
-原生版本保留 React，使用 Rust 桌面服務與 SenseVoice / Paraformer 本機推論。啟動開發模式：`npm run dev:rust`。開發、模型下載與驗證說明見 [Rust desktop development](docs/rust-desktop.md)。原有 Electron 指令暫時保留。
+原生版本保留 React，使用 Rust 桌面服務與本機語音推論。啟動開發模式：`npm run dev:rust`。支援的引擎、模型大小、開發、模型下載與驗證說明見 [Rust desktop development](docs/rust-desktop.md)。原有 Electron 指令暫時保留。
 
 ## Windows / macOS 獨立執行檔與安裝套件建置
 
