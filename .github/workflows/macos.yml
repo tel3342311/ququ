@@ -74,8 +74,10 @@ jobs:
             export APPLE_PASSWORD="${{ secrets.APPLE_PASSWORD }}"
             export APPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}"
           fi
-          if [ ! -d "src-tauri/target/sherpa-onnx-prebuilt" ]; then
-            cargo clean --package sherpa-onnx-sys --manifest-path src-tauri/Cargo.toml || true
+          # rust-cache prunes the contents of target/sherpa-onnx-prebuilt but keeps the
+          # directory, so check for the extracted libs and force the build script to rerun.
+          if ! ls -d src-tauri/target/sherpa-onnx-prebuilt/*/lib >/dev/null 2>&1; then
+            cargo clean --package sherpa-onnx-sys --release --target ${{ matrix.target }} --manifest-path src-tauri/Cargo.toml || true
           fi
           npm run build:rust -- --config src-tauri/tauri.macos.conf.json --target ${{ matrix.target }}
 
