@@ -95,43 +95,18 @@ export function tokenizeTranscript(text, specialWords = []) {
 }
 
 /**
- * Resolves a contiguous token range between anchor and target indices (order-independent)
- * and returns the slice of tokens along with the joined text.
+ * Resolves the contiguous token range between two valid token indices (order-independent)
+ * and returns its bounds along with the joined text.
  *
- * @param {Array<{text: string, isSpecial?: boolean, special?: object, isWordLike?: boolean}>} tokens
- * @param {number|null|undefined} anchorIndex
- * @param {number|null|undefined} targetIndex
- * @returns {{ startIndex: number, endIndex: number, tokens: Array<object>, text: string }}
+ * @param {Array<{text: string}>} tokens
+ * @param {number} anchorIndex
+ * @param {number} targetIndex
+ * @returns {{ startIndex: number, endIndex: number, text: string }}
  */
 export function getTokenRange(tokens, anchorIndex, targetIndex) {
-  if (!Array.isArray(tokens) || tokens.length === 0) {
-    return { startIndex: -1, endIndex: -1, tokens: [], text: '' };
-  }
+  const startIndex = Math.min(anchorIndex, targetIndex);
+  const endIndex = Math.max(anchorIndex, targetIndex);
+  const text = tokens.slice(startIndex, endIndex + 1).map(token => token.text).join('');
 
-  const hasAnchor = typeof anchorIndex === 'number' && !Number.isNaN(anchorIndex);
-  const hasTarget = typeof targetIndex === 'number' && !Number.isNaN(targetIndex);
-
-  if (!hasAnchor && !hasTarget) {
-    return { startIndex: -1, endIndex: -1, tokens: [], text: '' };
-  }
-
-  const rawStart = hasAnchor ? anchorIndex : targetIndex;
-  const rawEnd = hasTarget ? targetIndex : anchorIndex;
-
-  const startIndex = Math.max(0, Math.min(rawStart, rawEnd));
-  const endIndex = Math.min(tokens.length - 1, Math.max(rawStart, rawEnd));
-
-  if (startIndex > endIndex || startIndex >= tokens.length || endIndex < 0) {
-    return { startIndex: -1, endIndex: -1, tokens: [], text: '' };
-  }
-
-  const selectedTokens = tokens.slice(startIndex, endIndex + 1);
-  const text = selectedTokens.map(t => (t && typeof t.text === 'string' ? t.text : '')).join('');
-
-  return {
-    startIndex,
-    endIndex,
-    tokens: selectedTokens,
-    text,
-  };
+  return { startIndex, endIndex, text };
 }

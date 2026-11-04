@@ -48,17 +48,12 @@ export default function EntityTranscript({
           word: token.special?.word || token.text,
           replacement: token.special?.replacement || '',
           isSpecial: true,
-          specialId: token.special?.id,
-          startIndex: range.startIndex,
-          endIndex: range.endIndex,
         });
       } else {
         onWordClick?.({
           word: range.text,
           replacement: '',
           isSpecial: false,
-          startIndex: range.startIndex,
-          endIndex: range.endIndex,
         });
       }
     } else {
@@ -70,17 +65,12 @@ export default function EntityTranscript({
           word: token.special?.word || token.text,
           replacement: token.special?.replacement || '',
           isSpecial: true,
-          specialId: token.special?.id,
-          startIndex: idx,
-          endIndex: idx,
         });
       } else {
         onWordClick?.({
           word: token.text,
           replacement: '',
           isSpecial: false,
-          startIndex: idx,
-          endIndex: idx,
         });
       }
     }

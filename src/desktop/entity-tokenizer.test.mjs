@@ -56,13 +56,6 @@ test('tokenizeTranscript prioritizes longer matches first', () => {
   assert.equal(entity.special.id, 2);
 });
 
-test('getTokenRange returns empty result on invalid inputs', () => {
-  assert.deepEqual(getTokenRange([], 0, 1), { startIndex: -1, endIndex: -1, tokens: [], text: '' });
-  assert.deepEqual(getTokenRange(null, 0, 1), { startIndex: -1, endIndex: -1, tokens: [], text: '' });
-  assert.deepEqual(getTokenRange([{ text: 'A' }], null, null), { startIndex: -1, endIndex: -1, tokens: [], text: '' });
-  assert.deepEqual(getTokenRange([{ text: 'A' }], 5, 8), { startIndex: -1, endIndex: -1, tokens: [], text: '' });
-});
-
 test('getTokenRange selects contiguous range of adjacent words', () => {
   const tokens = tokenizeTranscript('邊緣運算很實用。', []);
   const edgeIdx = tokens.findIndex(t => t.text === '邊緣');
@@ -104,6 +97,5 @@ test('getTokenRange handles single token anchor', () => {
   const range = getTokenRange(tokens, 0, 0);
   assert.equal(range.startIndex, 0);
   assert.equal(range.endIndex, 0);
-  assert.equal(range.tokens.length, 1);
   assert.equal(range.text, tokens[0].text);
 });
