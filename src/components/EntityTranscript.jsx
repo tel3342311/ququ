@@ -6,7 +6,7 @@ export default function EntityTranscript({
   specialWords = [],
   onWordClick,
   paragraphRef,
-  isPopoverOpen,
+  isSelectionActive,
 }) {
   const tokens = useMemo(() => {
     return tokenizeTranscript(text, specialWords);
@@ -16,16 +16,16 @@ export default function EntityTranscript({
   const [selectedRange, setSelectedRange] = useState(null); // [startIndex, endIndex]
 
   useEffect(() => {
-    if (isPopoverOpen === false) {
+    if (!isSelectionActive) {
       setAnchorIndex(null);
       setSelectedRange(null);
     }
-  }, [isPopoverOpen]);
+  }, [isSelectionActive]);
 
   useEffect(() => {
     setAnchorIndex(null);
     setSelectedRange(null);
-  }, [text]);
+  }, [tokens]);
 
   const handleTokenClick = (idx, e) => {
     e.stopPropagation();
