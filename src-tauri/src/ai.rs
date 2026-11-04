@@ -162,11 +162,162 @@ pub async fn complete(config: Value, text: &str, mode: &str, test: bool) -> Resu
         parse_completion_body(status.as_u16(), status.is_success(), &body, &model, test)?;
     if !test {
         let language = config["speech_language"].as_str().unwrap_or("zh");
-        if let Some(text) = result["text"].as_str() {
-            result["text"] = json!(ququ_speech::convert_for_language(text, language));
+        if let Some(out_text) = result["text"].as_str() {
+            let validated = validate_output_safety(text, out_text)?;
+            result["text"] = json!(ququ_speech::convert_for_language(&validated, language));
         }
     }
     Ok(result)
+}
+
+pub fn strip_think_tags(text: &str) -> Result<String, String> {
+    let lower = text.to_ascii_lowercase();
+    if let Some(start) = lower.find("<think>") {
+        if let Some(end_offset) = lower[start..].find("</think>") {
+            let end = start + end_offset + "</think>".len();
+            let stripped = format!("{}{}", &text[..start], &text[end..]);
+            return strip_think_tags(stripped.trim());
+        } else {
+            let prefix = text[..start].trim();
+            if prefix.is_empty() {
+                return Err("AI 輸出包含未結束的 <think> 標籤且無有效內容".to_string());
+            }
+            return Ok(prefix.to_string());
+        }
+    }
+    if lower.contains("</think>") {
+        return Err("AI 輸出包含未成對的 </think> 標籤".to_string());
+    }
+    Ok(text.trim().to_string())
+}
+
+struct NumberLiteral {
+    start: usize,
+    end: usize,
+    value: String,
+}
+
+fn number_literals(text: &str) -> Vec<NumberLiteral> {
+    let chars: Vec<(usize, char)> = text.char_indices().collect();
+    let digit_at = |i: usize| chars.get(i).is_some_and(|(_, c)| c.is_ascii_digit());
+    let mut numbers = Vec::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if !digit_at(i) {
+            i += 1;
+            continue;
+        }
+        let start = chars[i].0;
+        let mut value = String::new();
+        let mut seen_dot = false;
+        while i < chars.len() {
+            let ch = chars[i].1;
+            if ch.is_ascii_digit() {
+                value.push(ch);
+            } else if ch == ',' && !seen_dot && (1..=3).all(|k| digit_at(i + k)) && !digit_at(i + 4)
+            {
+            } else if ch == '.' && !seen_dot && digit_at(i + 1) {
+                value.push(ch);
+                seen_dot = true;
+            } else {
+                break;
+            }
+            i += 1;
+        }
+        if seen_dot {
+            value = value
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string();
+        }
+        let end = chars.get(i).map_or(text.len(), |(offset, _)| *offset);
+        numbers.push(NumberLiteral { start, end, value });
+    }
+    numbers
+}
+
+const SELF_CORRECTION_MARKERS: &[&str] = &[
+    "不對",
+    "不对",
+    "說錯",
+    "说错",
+    "講錯",
+    "讲错",
+    "更正",
+    "我是說",
+    "我是说",
+    "我的意思是",
+    "更準確地說",
+    "更准确地说",
+];
+
+const CLAUSE_BREAKS: [char; 11] = ['，', ',', '、', '。', '！', '？', '!', '?', '；', ';', '\n'];
+
+fn is_soft(c: char) -> bool {
+    !c.is_alphanumeric() || ['呃', '嗯', '啊'].contains(&c)
+}
+
+fn corrected_away(
+    input: &str,
+    number: &NumberLiteral,
+    input_numbers: &[NumberLiteral],
+    output_values: &[String],
+) -> bool {
+    let rest = &input[number.end..];
+    let Some((marker, marker_len)) = SELF_CORRECTION_MARKERS
+        .iter()
+        .filter_map(|marker| rest.find(marker).map(|at| (at, marker.len())))
+        .min()
+    else {
+        return false;
+    };
+    let gap = &rest[..marker];
+    if gap.contains(['。', '！', '？', '!', '?', '\n']) {
+        return false;
+    }
+    let mut gap_chars = gap.trim_start().chars().peekable();
+    let mut unit_len = 0;
+    while let Some(&c) = gap_chars.peek() {
+        if unit_len == 2 || is_soft(c) || c.is_ascii_digit() {
+            break;
+        }
+        unit_len += 1;
+        gap_chars.next();
+    }
+    if !gap_chars.all(is_soft) {
+        return false;
+    }
+    let after = rest[marker + marker_len..].trim_start_matches(is_soft);
+    let clause_start = input.len() - after.len();
+    let clause_end = clause_start + after.find(CLAUSE_BREAKS).unwrap_or(after.len());
+    input_numbers.iter().any(|later| {
+        later.start >= clause_start
+            && later.start < clause_end
+            && output_values.contains(&later.value)
+    })
+}
+
+pub fn validate_output_safety(input: &str, output: &str) -> Result<String, String> {
+    let cleaned = strip_think_tags(output)?;
+    if cleaned.is_empty() {
+        return Err("AI 最佳化輸出為空".to_string());
+    }
+    let input_numbers = number_literals(input);
+    let output_values: Vec<String> = number_literals(&cleaned)
+        .into_iter()
+        .map(|number| number.value)
+        .collect();
+    for number in &input_numbers {
+        if !output_values.contains(&number.value)
+            && !corrected_away(input, number, &input_numbers, &output_values)
+        {
+            return Err(format!(
+                "AI 最佳化遺漏或竄改了輸入中的數值字面量: '{}'",
+                number.value
+            ));
+        }
+    }
+    Ok(cleaned)
 }
 
 #[cfg(test)]
@@ -351,5 +502,137 @@ mod tests {
             ququ_speech::convert_for_language("図書館で勉強する", "ja"),
             "図書館で勉強する"
         );
+    }
+
+    fn complete_with_mock_reply(input: &str, reply: &str) -> Result<Value, String> {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let body = json!({"choices":[{"message":{"content":reply}}]}).to_string();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 16384];
+            let _ = stream.read(&mut buf).unwrap();
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream.write_all(response.as_bytes()).unwrap();
+        });
+        let config = json!({
+            "ai_api_key": "test-key",
+            "ai_base_url": format!("http://{addr}/v1"),
+            "ai_model": "test-model",
+            "speech_language": "zh"
+        });
+        let result = tauri::async_runtime::block_on(complete(config, input, "optimize", false));
+        server.join().unwrap();
+        result
+    }
+
+    #[test]
+    fn ai_complete_applies_safety_guard_to_model_replies() {
+        let ok = complete_with_mock_reply(
+            "呃訂單編號 9527 要送 100 件",
+            "<think>先去掉贅字</think>\n訂單編號 9527 要送 100 件。",
+        )
+        .unwrap();
+        assert_eq!(ok["text"], "訂單編號 9527 要送 100 件。");
+
+        let input = "訂單編號 9527 要送 100 件";
+        let dropped = complete_with_mock_reply(input, "訂單編號 9527 要送貨。").unwrap_err();
+        assert!(dropped.contains("100"), "{dropped}");
+
+        assert!(complete_with_mock_reply("測試", "<think>只有思考").is_err());
+
+        let input = "會議定在3號，呃不對，是4號";
+        let corrected = complete_with_mock_reply(input, "會議定在4號。").unwrap();
+        assert_eq!(corrected["text"], "會議定在4號。");
+    }
+
+    #[test]
+    fn safety_validation_strips_think_tags_and_rejects_empty_or_broken_tags() {
+        // Normal stripping
+        let with_think = "<think>\nThinking about the text...\n</think>\n這是最佳化後的句子。";
+        assert_eq!(
+            strip_think_tags(with_think).unwrap(),
+            "這是最佳化後的句子。"
+        );
+
+        // Multiple think tags
+        let multiple = "<think>first</think>中間文字<think>second</think>結尾。";
+        assert_eq!(strip_think_tags(multiple).unwrap(), "中間文字結尾。");
+
+        // Lone closing tag
+        assert!(strip_think_tags("孤立標籤</think>").is_err());
+
+        // Think only -> empty result fails safety validation
+        let think_only = "<think>只有思考沒有輸出</think>";
+        assert!(validate_output_safety("測試", think_only).is_err());
+    }
+
+    #[test]
+    fn safety_validation_ensures_input_numbers_and_literals_are_preserved() {
+        let input = "訂單編號 9527，請在 2026 年 11 月 3 日前送達 100 件產品。";
+        let preserved_output =
+            "<think>保留所有數字</think>訂單編號 9527，請於 2026 年 11 月 3 日前送達 100 件產品。";
+        let valid = validate_output_safety(input, preserved_output).unwrap();
+        assert_eq!(
+            valid,
+            "訂單編號 9527，請於 2026 年 11 月 3 日前送達 100 件產品。"
+        );
+
+        // Tampered number (9527 -> 9528)
+        let corrupted_number = "訂單編號 9528，請於 2026 年 11 月 3 日前送達 100 件產品。";
+        let err = validate_output_safety(input, corrupted_number).unwrap_err();
+        assert!(err.contains("9527"));
+
+        // Dropped number (100 missing)
+        let dropped_number = "訂單編號 9527，請於 2026 年 11 月 3 日前送達產品。";
+        let err2 = validate_output_safety(input, dropped_number).unwrap_err();
+        assert!(err2.contains("100"));
+
+        // Substring collision: input has 3, output changed 3 to 4 but still contains 300
+        let collision_input = "買 3 顆蘋果，共 300 元。";
+        let collision_corrupted = "買 4 顆蘋果，共 300 元。";
+        let err3 = validate_output_safety(collision_input, collision_corrupted).unwrap_err();
+        assert!(err3.contains("3"));
+    }
+
+    #[test]
+    fn safety_validation_accepts_equivalent_number_formatting() {
+        assert!(validate_output_safety("共 1000 元", "共 1,000 元。").is_ok());
+        assert!(validate_output_safety("共 1,000 元", "共 1000 元。").is_ok());
+        assert!(validate_output_safety("增加 3.5 倍", "增加 3.50 倍。").is_ok());
+        assert!(validate_output_safety("增加 3.0 倍", "增加 3 倍。").is_ok());
+        assert!(validate_output_safety("共 1000 元", "共 1,001 元。").is_err());
+        assert!(validate_output_safety("增加 3.5 倍", "增加 3.05 倍。").is_err());
+        assert!(validate_output_safety("編號 1,2345", "編號 12345").is_err());
+    }
+
+    #[test]
+    fn safety_validation_allows_numbers_removed_by_self_correction() {
+        assert_eq!(
+            validate_output_safety("會議定在3號，呃不對，是4號", "會議定在4號").unwrap(),
+            "會議定在4號"
+        );
+        assert!(validate_output_safety("會議定在3號，呃不對，是4號", "會議定在3號").is_err());
+        assert!(validate_output_safety("會議定在3號，呃不對，是週四", "會議定在週四").is_err());
+        assert!(validate_output_safety("買3顆。不對，我說錯了是4顆", "我說錯了是4顆").is_err());
+        assert!(validate_output_safety("房間5，會議定在3號，不對，是4號", "會議定在4號").is_err());
+        assert!(
+            validate_output_safety("房間5，請記下來。會議定在3號，不對，是4號", "會議定在4號")
+                .is_err()
+        );
+        assert!(validate_output_safety("會議定在 3 號，呃不對，是 4 號", "會議定在 4 號").is_ok());
+        assert!(validate_output_safety("庫存 3 箱，數量不對，請補 4 箱", "請補 4 箱").is_err());
+        assert!(validate_output_safety("庫存3箱，數量不對，請補4箱", "請補4箱").is_err());
+        assert!(validate_output_safety(
+            "訂單3已出貨，客戶說包裝不對，退貨單號4",
+            "已出貨，客戶說包裝不對，退貨單號4"
+        )
+        .is_err());
+        assert!(validate_output_safety("定在3號不對，下週再談，是4號", "下週再談，是4號").is_err());
+        assert!(validate_output_safety("共1000元，呃不對，是1200元", "共1,200元").is_ok());
     }
 }

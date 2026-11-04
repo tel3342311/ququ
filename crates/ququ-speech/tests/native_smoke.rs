@@ -83,3 +83,43 @@ fn real_sensevoice_recognition_reuse_silence_and_failed_switch() {
     service.shutdown().unwrap();
     assert!(!service.status(Engine::SenseVoice).unwrap().initialized);
 }
+
+#[test]
+#[ignore = "set QUQU_SPEECH_MODEL_ROOT (with Qwen3-ASR models) and QUQU_SPEECH_TEST_WAV, then run --ignored"]
+fn real_qwen3_asr_long_continuous_speech_is_not_truncated() {
+    let root = std::env::var_os("QUQU_SPEECH_MODEL_ROOT").expect("QUQU_SPEECH_MODEL_ROOT");
+    let wav = std::env::var_os("QUQU_SPEECH_TEST_WAV").expect("QUQU_SPEECH_TEST_WAV");
+    let bytes = std::fs::read(wav).unwrap();
+    let service = SpeechService::new(root).unwrap();
+    service.switch_engine(Engine::TeaAsr).unwrap();
+    let options = TranscribeOptions {
+        use_vad: false,
+        ..Default::default()
+    };
+    let single = service.transcribe_wav(&bytes, options.clone()).unwrap();
+    assert!(!single.text.trim().is_empty());
+
+    let mut reader = hound::WavReader::new(Cursor::new(&bytes)).unwrap();
+    let spec = reader.spec();
+    let samples: Vec<i16> = reader.samples::<i16>().map(Result::unwrap).collect();
+    let frames = samples.len() / spec.channels as usize;
+    let repeats = ((30 * spec.sample_rate as usize) / frames).max(2);
+    let mut long = Cursor::new(Vec::new());
+    {
+        let mut writer = hound::WavWriter::new(&mut long, spec).unwrap();
+        for _ in 0..repeats {
+            for sample in &samples {
+                writer.write_sample(*sample).unwrap();
+            }
+        }
+        writer.finalize().unwrap();
+    }
+    let result = service.transcribe_wav(&long.into_inner(), options).unwrap();
+    let expected = single.text.chars().count() * repeats;
+    let actual = result.text.chars().count();
+    assert!(
+        actual * 10 >= expected * 8,
+        "long transcript truncated: {actual} chars for {repeats} repeats of {} chars",
+        single.text.chars().count()
+    );
+}

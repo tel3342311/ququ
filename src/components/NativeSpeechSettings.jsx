@@ -13,8 +13,10 @@ export default function NativeSpeechSettings() {
     let active = true;
     api.getAllSettings().then(values => {
       if (!active) return;
-      setEngine(values.speech_engine === 'sensevoice' ? 'sense_voice' : values.speech_engine || 'sense_voice');
-      setLanguage(values.speech_language || 'zh');
+      const loadedEngine = values.speech_engine === 'sensevoice' ? 'sense_voice' : values.speech_engine || 'sense_voice';
+      const loadedLanguage = values.speech_language || 'zh';
+      setEngine(loadedEngine);
+      setLanguage(languagesForEngine(loadedEngine).includes(loadedLanguage) ? loadedLanguage : 'zh');
       setNormalization(values.sensevoice_use_itn !== false);
     }).catch(error => { if (active) setStatus(error.message || String(error)); });
     const dispose = api.onModelDownloadProgress((_, progress) => {
@@ -38,12 +40,15 @@ export default function NativeSpeechSettings() {
     <h2 className="text-lg font-semibold">本機語音引擎</h2>
     <p className="text-sm text-muted-foreground">模型在本機執行。先下載目標模型，再切換；初始化失敗時保留原來的引擎。</p>
     <label className="block">辨識模型<select disabled={busy} value={engine} onChange={e => { setEngine(e.target.value); if (!languagesForEngine(e.target.value).includes(language)) setLanguage('zh'); }} className="mt-1 block w-full rounded border p-2 bg-background text-foreground">
-      <option value="sense_voice">SenseVoiceSmall INT8（中 / 粵 / 英 / 日 / 韓）</option><option value="paraformer">Paraformer（中 / 英）</option>
+      <option value="sense_voice">SenseVoiceSmall INT8（中 / 粵 / 英 / 日 / 韓）</option>
+      <option value="tea_asr">Qwen3-ASR 1.7B INT8（社群匯出）</option>
+      <option value="paraformer">Paraformer（中 / 英）</option>
     </select></label>
-    <label className="block">語言<select disabled={busy} value={language} onChange={e => setLanguage(e.target.value)} className="mt-1 block w-full rounded border p-2 bg-background text-foreground">
+    {engine === 'tea_asr' && <p className="text-sm text-muted-foreground break-words">社群 sherpa-onnx 匯出，來源：thieunv-asilla/sherpa-onnx-qwen3-asr-1.7B-int8</p>}
+    {engine !== 'tea_asr' && <label className="block">語言<select disabled={busy} value={language} onChange={e => setLanguage(e.target.value)} className="mt-1 block w-full rounded border p-2 bg-background text-foreground">
       {[['zh','中文'],['auto','自動'],['yue','粵語'],['en','英文'],['ja','日文'],['ko','韓文']].filter(([value]) => languagesForEngine(engine).includes(value)).map(([value,label]) => <option key={value} value={value}>{label}</option>)}
-    </select></label>
-    <label className="flex items-center gap-2"><input disabled={busy} type="checkbox" checked={normalization} onChange={e => setNormalization(e.target.checked)} />{engine === 'sense_voice' ? '標點符號與文字正規化（SenseVoice）' : '還原標點'}</label>
+    </select></label>}
+    {engine !== 'tea_asr' && <label className="flex items-center gap-2"><input disabled={busy} type="checkbox" checked={normalization} onChange={e => setNormalization(e.target.checked)} />{engine === 'sense_voice' ? '標點符號與文字正規化（SenseVoice）' : '還原標點'}</label>}
     <div className="flex flex-wrap gap-3"><button disabled={busy} onClick={() => apply(true)} className="rounded bg-blue-600 text-white px-4 py-2 disabled:opacity-50">下載並切換</button><button disabled={busy} onClick={() => apply(false)} className="rounded border px-4 py-2 disabled:opacity-50">使用已下載模型</button></div>
     <p role="status" className="text-sm break-words">{status}</p>
   </section>;

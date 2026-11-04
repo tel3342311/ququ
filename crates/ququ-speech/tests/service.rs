@@ -181,3 +181,80 @@ fn legacy_model_name_and_missing_options_deserialize_compatibly() {
     assert!(options.use_punc && options.use_vad);
     assert!(options.hotword.is_empty());
 }
+
+#[test]
+fn tea_asr_engine_serialization_and_artifacts() {
+    assert_eq!(
+        serde_json::from_str::<Engine>("\"tea_asr\"").unwrap(),
+        Engine::TeaAsr
+    );
+    for alias in [
+        "\"tea-asr\"",
+        "\"tea_asr_1_1\"",
+        "\"tea-asr-1.1\"",
+        "\"TeaAsr\"",
+    ] {
+        assert!(serde_json::from_str::<Engine>(alias).is_err(), "{alias}");
+    }
+    for alias in ["tea-asr", "tea_asr_1_1", "tea-asr-1.1", "TeaAsr"] {
+        assert!(alias.parse::<Engine>().is_err(), "{alias}");
+    }
+    assert_eq!("tea_asr".parse::<Engine>().unwrap(), Engine::TeaAsr);
+    assert_eq!(
+        serde_json::to_string(&Engine::TeaAsr).unwrap(),
+        "\"tea_asr\""
+    );
+
+    let models = ququ_speech::models::available_models();
+    let tea = models
+        .iter()
+        .find(|m| m.engine == Engine::TeaAsr)
+        .expect("Qwen3-ASR model info must exist");
+    assert_eq!(tea.name, "Qwen3-ASR 1.7B");
+    assert_eq!(tea.variant, "int8");
+    assert!(tea.supports_builtin_punctuation);
+    assert!(!tea.supports_hotwords);
+    assert_eq!(tea.languages, vec!["zh".to_string()]);
+
+    let arts = ququ_speech::models::artifacts(Engine::TeaAsr);
+    assert_eq!(arts.len(), 7);
+    assert!(arts
+        .iter()
+        .any(|a| a.relative_path.ends_with("conv_frontend.onnx")));
+    assert!(arts
+        .iter()
+        .any(|a| a.relative_path.ends_with("encoder.int8.onnx")));
+    assert!(arts
+        .iter()
+        .any(|a| a.relative_path.ends_with("decoder.int8.onnx")));
+    assert!(arts
+        .iter()
+        .any(|a| a.relative_path.ends_with("tokenizer/vocab.json")));
+}
+
+#[test]
+fn tea_asr_service_status_and_missing_models() {
+    let dir = tempfile::tempdir().unwrap();
+    let service = SpeechService::new(dir.path()).unwrap();
+    let status = service.status(Engine::TeaAsr).unwrap();
+    assert!(!status.models_downloaded);
+    assert!(!status.initialized);
+    assert_eq!(status.engine, Engine::TeaAsr);
+    assert_eq!(status.missing_models.len(), 7);
+    assert!(status
+        .missing_models
+        .iter()
+        .any(|m| m.contains("conv_frontend.onnx")));
+    assert!(status
+        .missing_models
+        .iter()
+        .any(|m| m.contains("encoder.int8.onnx")));
+    assert!(status
+        .missing_models
+        .iter()
+        .any(|m| m.contains("decoder.int8.onnx")));
+    assert!(status
+        .missing_models
+        .iter()
+        .any(|m| m.contains("silero_vad.onnx")));
+}

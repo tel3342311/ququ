@@ -5,10 +5,17 @@ use crate::{
 };
 use sherpa_onnx::{
     LinearResampler, OfflineParaformerModelConfig, OfflinePunctuation, OfflinePunctuationConfig,
-    OfflineRecognizer, OfflineRecognizerConfig, OfflineSenseVoiceModelConfig, SileroVadModelConfig,
-    VadModelConfig, VoiceActivityDetector,
+    OfflineQwen3ASRModelConfig, OfflineRecognizer, OfflineRecognizerConfig,
+    OfflineSenseVoiceModelConfig, SileroVadModelConfig, VadModelConfig, VoiceActivityDetector,
 };
 use std::path::Path;
+
+fn max_segment_seconds(engine: Engine) -> u32 {
+    match engine {
+        Engine::TeaAsr => 15,
+        Engine::SenseVoice | Engine::Paraformer => 30,
+    }
+}
 
 pub(crate) struct NativeRuntime {
     pub engine: Engine,
@@ -45,6 +52,25 @@ impl NativeRuntime {
                 };
                 config.model_config.tokens = Some(filename(models::PARA_TOKENS.relative_path)?);
             }
+            Engine::TeaAsr => {
+                let tokenizer_dir = models::artifact_path(root, "qwen3-asr-1.7b-int8/tokenizer")?;
+                config.model_config.qwen3_asr = OfflineQwen3ASRModelConfig {
+                    conv_frontend: Some(filename(models::TEA_CONV.relative_path)?),
+                    encoder: Some(filename(models::TEA_ENCODER.relative_path)?),
+                    decoder: Some(filename(models::TEA_DECODER.relative_path)?),
+                    tokenizer: Some(
+                        tokenizer_dir
+                            .to_str()
+                            .ok_or_else(|| {
+                                SpeechError::Inference("model path is not valid Unicode".into())
+                            })?
+                            .to_owned(),
+                    ),
+                    max_new_tokens: 256,
+                    max_total_len: 512,
+                    ..Default::default()
+                };
+            }
         }
         let recognizer = OfflineRecognizer::create(&config)
             .ok_or_else(|| SpeechError::Inference("could not initialize ASR model".into()))?;
@@ -65,7 +91,7 @@ impl NativeRuntime {
                 min_silence_duration: 0.5,
                 min_speech_duration: 0.1,
                 window_size: 512,
-                max_speech_duration: 28.0,
+                max_speech_duration: (max_segment_seconds(engine) - 2) as f32,
             },
             ten_vad: Default::default(),
             sample_rate: 16000,
@@ -119,12 +145,16 @@ impl NativeRuntime {
             })?;
             Ok(result.text.trim().to_owned())
         };
-        if self.engine == Engine::SenseVoice && options.use_vad {
+        if (self.engine == Engine::SenseVoice || self.engine == Engine::TeaAsr) && options.use_vad {
             self.vad.reset();
             for chunk in samples.chunks(512) {
                 self.vad.accept_waveform(chunk);
                 while let Some(segment) = self.vad.front() {
-                    for bounded in audio::bounded_segments(segment.samples(), 16000, 30)? {
+                    for bounded in audio::bounded_segments(
+                        segment.samples(),
+                        16000,
+                        max_segment_seconds(self.engine),
+                    )? {
                         pieces.push(decode(bounded)?);
                     }
                     self.vad.pop();
@@ -132,13 +162,19 @@ impl NativeRuntime {
             }
             self.vad.flush();
             while let Some(segment) = self.vad.front() {
-                for bounded in audio::bounded_segments(segment.samples(), 16000, 30)? {
+                for bounded in audio::bounded_segments(
+                    segment.samples(),
+                    16000,
+                    max_segment_seconds(self.engine),
+                )? {
                     pieces.push(decode(bounded)?);
                 }
                 self.vad.pop();
             }
-        } else if self.engine == Engine::SenseVoice {
-            for bounded in audio::bounded_segments(&samples, 16000, 30)? {
+        } else if self.engine == Engine::SenseVoice || self.engine == Engine::TeaAsr {
+            for bounded in
+                audio::bounded_segments(&samples, 16000, max_segment_seconds(self.engine))?
+            {
                 pieces.push(decode(bounded)?);
             }
         } else {

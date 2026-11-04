@@ -20,3 +20,7 @@ test('Paraformer choices exclude languages that native inference rejects', () =>
   assert.deepEqual(languagesForEngine('paraformer'), ['zh','en']);
   assert.ok(languagesForEngine('sense_voice').includes('auto'));
 });
+test('Qwen3-ASR only offers the fixed zh language and no aliases', () => {
+  assert.deepEqual(languagesForEngine('tea_asr'), ['zh']);
+  for (const alias of ['tea-asr', 'tea_asr_1_1', 'tea-asr-1.1']) assert.notDeepEqual(languagesForEngine(alias), ['zh']);
+});
