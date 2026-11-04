@@ -154,7 +154,9 @@ pub(crate) fn download(
             ));
         }
         emit("downloading", 0, None);
-        extract(response, root, archive, |done| emit("downloading", done, None))
+        extract(response, root, archive, |done| {
+            emit("downloading", done, None)
+        })
     })();
     match result {
         Ok(()) => {
@@ -336,7 +338,10 @@ mod tests {
         let f = fixture(&[("../evil", b"x"), ("pkg/extra.bin", b"y")], false);
         let dir = tempfile::tempdir().unwrap();
         extract(f.archive.as_slice(), dir.path(), &f.pinned, |_| {}).unwrap();
-        assert_eq!(fs::read(dir.path().join("m/a.bin")).unwrap(), b"encoder bytes");
+        assert_eq!(
+            fs::read(dir.path().join("m/a.bin")).unwrap(),
+            b"encoder bytes"
+        );
         assert_eq!(fs::read(dir.path().join("m/b.txt")).unwrap(), b"tokens");
         assert!(!dir.path().join("evil").exists());
         assert!(!dir.path().parent().unwrap().join("evil").exists());
