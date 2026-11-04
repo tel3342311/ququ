@@ -9,7 +9,11 @@ fn main() {
     let dir = Path::new(&args[1]);
     let mut reader = hound::WavReader::open(&args[2]).expect("open wav");
     let spec = reader.spec();
-    assert_eq!((spec.channels, spec.sample_rate), (1, 16_000), "need 16 kHz mono");
+    assert_eq!(
+        (spec.channels, spec.sample_rate),
+        (1, 16_000),
+        "need 16 kHz mono"
+    );
     let samples: Vec<f32> = reader
         .samples::<i16>()
         .map(|s| s.expect("sample") as f32 / 32768.0)

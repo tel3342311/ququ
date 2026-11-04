@@ -1,15 +1,80 @@
-import React, { useMemo } from 'react';
-import { tokenizeTranscript } from '../desktop/entity-tokenizer.mjs';
+import React, { useMemo, useState, useEffect } from 'react';
+import { tokenizeTranscript, getTokenRange } from '../desktop/entity-tokenizer.mjs';
 
 export default function EntityTranscript({
   text,
   specialWords = [],
   onWordClick,
   paragraphRef,
+  isSelectionActive,
 }) {
   const tokens = useMemo(() => {
     return tokenizeTranscript(text, specialWords);
   }, [text, specialWords]);
+
+  const [anchorIndex, setAnchorIndex] = useState(null);
+  const [selectedRange, setSelectedRange] = useState(null); // [startIndex, endIndex]
+
+  useEffect(() => {
+    if (!isSelectionActive) {
+      setAnchorIndex(null);
+      setSelectedRange(null);
+    }
+  }, [isSelectionActive]);
+
+  useEffect(() => {
+    setAnchorIndex(null);
+    setSelectedRange(null);
+  }, [tokens]);
+
+  const handleTokenClick = (idx, e) => {
+    e.stopPropagation();
+    if (e.shiftKey) {
+      e.preventDefault();
+    }
+
+    const token = tokens[idx];
+    if (!token) return;
+
+    const isShift = Boolean(e.shiftKey);
+
+    if (isShift && anchorIndex !== null) {
+      const range = getTokenRange(tokens, anchorIndex, idx);
+      setSelectedRange([range.startIndex, range.endIndex]);
+
+      const isSingle = range.startIndex === range.endIndex;
+      if (isSingle && token.isSpecial) {
+        onWordClick?.({
+          word: token.special?.word || token.text,
+          replacement: token.special?.replacement || '',
+          isSpecial: true,
+        });
+      } else {
+        onWordClick?.({
+          word: range.text,
+          replacement: '',
+          isSpecial: false,
+        });
+      }
+    } else {
+      setAnchorIndex(idx);
+      setSelectedRange([idx, idx]);
+
+      if (token.isSpecial) {
+        onWordClick?.({
+          word: token.special?.word || token.text,
+          replacement: token.special?.replacement || '',
+          isSpecial: true,
+        });
+      } else {
+        onWordClick?.({
+          word: token.text,
+          replacement: '',
+          isSpecial: false,
+        });
+      }
+    }
+  };
 
   return (
     <p
@@ -17,23 +82,20 @@ export default function EntityTranscript({
       className="whitespace-pre-wrap break-words mt-2 leading-relaxed select-text"
     >
       {tokens.map((token, idx) => {
+        const isSelected =
+          selectedRange !== null && idx >= selectedRange[0] && idx <= selectedRange[1];
+
         if (token.isSpecial) {
           const isPair = Boolean(token.special?.replacement);
           return (
             <span
               key={idx}
-              onClick={(e) => {
-                e.stopPropagation();
-                onWordClick?.({
-                  word: token.special?.word || token.text,
-                  replacement: token.special?.replacement || '',
-                  isSpecial: true,
-                  specialId: token.special?.id,
-                });
-              }}
+              data-token-index={idx}
+              data-selected={isSelected ? 'true' : undefined}
+              onClick={(e) => handleTokenClick(idx, e)}
               className={`entity-token-special ${
                 isPair ? 'entity-token-pair' : 'entity-token-plain'
-              }`}
+              } ${isSelected ? 'entity-token-selected' : ''}`}
               title={
                 isPair
                   ? `替換詞組：${token.special.word} ➔ ${token.special.replacement}（點擊編輯）`
@@ -49,15 +111,10 @@ export default function EntityTranscript({
           return (
             <span
               key={idx}
-              onClick={(e) => {
-                e.stopPropagation();
-                onWordClick?.({
-                  word: token.text,
-                  replacement: '',
-                  isSpecial: false,
-                });
-              }}
-              className="entity-token"
+              data-token-index={idx}
+              data-selected={isSelected ? 'true' : undefined}
+              onClick={(e) => handleTokenClick(idx, e)}
+              className={`entity-token ${isSelected ? 'entity-token-selected' : ''}`}
               title={`點擊將「${token.text}」加入專有詞彙`}
             >
               {token.text}
@@ -65,7 +122,21 @@ export default function EntityTranscript({
           );
         }
 
-        return <span key={idx}>{token.text}</span>;
+        return (
+          <span
+            key={idx}
+            data-token-index={idx}
+            data-selected={isSelected ? 'true' : undefined}
+            className={isSelected ? 'entity-token-selected' : undefined}
+            onClick={(e) => {
+              if (e.shiftKey && anchorIndex !== null) {
+                handleTokenClick(idx, e);
+              }
+            }}
+          >
+            {token.text}
+          </span>
+        );
       })}
     </p>
   );

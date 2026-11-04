@@ -62,6 +62,7 @@ export default function NativeDictation() {
       initialReplacement: replacement || '',
       isEditing: Boolean(isSpecial),
       isSaving: false,
+      fromTranscript: true,
     });
   };
 
@@ -72,6 +73,7 @@ export default function NativeDictation() {
       initialReplacement: '',
       isEditing: false,
       isSaving: false,
+      fromTranscript: false,
     });
   };
 
@@ -82,6 +84,7 @@ export default function NativeDictation() {
       initialReplacement: item.replacement || '',
       isEditing: true,
       isSaving: false,
+      fromTranscript: false,
     });
   };
 
@@ -201,6 +204,7 @@ export default function NativeDictation() {
                 specialWords={specialWords}
                 onWordClick={handleWordClick}
                 paragraphRef={sentenceRef}
+                isSelectionActive={correctionState.isOpen && correctionState.fromTranscript}
               />
 
               {result.firstPass && result.firstPass !== result.text && (

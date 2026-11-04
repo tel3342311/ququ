@@ -17,8 +17,8 @@ pub mod stream_models;
 
 pub use convert::{convert_for_language, to_traditional_tw};
 pub use models::{available_models, DownloadProgress, Engine, ModelInfo, ModelState};
-pub use stream_models::{StreamDownloadProgress, StreamModelStatus};
 pub use service::{SpeechService, SpeechStatus, TranscribeOptions, Transcription};
+pub use stream_models::{StreamDownloadProgress, StreamModelStatus};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SpeechError {

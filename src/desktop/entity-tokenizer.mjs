@@ -93,3 +93,20 @@ export function tokenizeTranscript(text, specialWords = []) {
 
   return tokens;
 }
+
+/**
+ * Resolves the contiguous token range between two valid token indices (order-independent)
+ * and returns its bounds along with the joined text.
+ *
+ * @param {Array<{text: string}>} tokens
+ * @param {number} anchorIndex
+ * @param {number} targetIndex
+ * @returns {{ startIndex: number, endIndex: number, text: string }}
+ */
+export function getTokenRange(tokens, anchorIndex, targetIndex) {
+  const startIndex = Math.min(anchorIndex, targetIndex);
+  const endIndex = Math.max(anchorIndex, targetIndex);
+  const text = tokens.slice(startIndex, endIndex + 1).map(token => token.text).join('');
+
+  return { startIndex, endIndex, text };
+}

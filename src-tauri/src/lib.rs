@@ -7,7 +7,9 @@ mod logging;
 mod shortcuts;
 mod windows;
 
-use ququ_speech::{hub::StreamHub, native_stream::SherpaStream, Engine, SpeechService, TranscribeOptions};
+use ququ_speech::{
+    hub::StreamHub, native_stream::SherpaStream, Engine, SpeechService, TranscribeOptions,
+};
 use serde_json::{json, Value};
 use std::{
     path::PathBuf,
@@ -59,12 +61,22 @@ fn selected(state: &AppState) -> Result<Engine, String> {
 }
 /// The speech language when the SenseVoice second pass is switched on (default)
 /// and its models are installed; otherwise None and streaming text is final.
-fn second_pass_language(state: &AppState, speech: &SpeechService) -> Result<Option<String>, String> {
+fn second_pass_language(
+    state: &AppState,
+    speech: &SpeechService,
+) -> Result<Option<String>, String> {
     let db = state.database()?;
-    if !db.get("streaming_second_pass", json!(true))?.as_bool().unwrap_or(true) {
+    if !db
+        .get("streaming_second_pass", json!(true))?
+        .as_bool()
+        .unwrap_or(true)
+    {
         return Ok(None);
     }
-    let ready = speech.streaming_status().map_err(|e| e.to_string())?.second_pass_ready;
+    let ready = speech
+        .streaming_status()
+        .map_err(|e| e.to_string())?
+        .second_pass_ready;
     Ok(ready.then(|| {
         db.get("speech_language", json!("zh"))
             .ok()
@@ -594,7 +606,9 @@ async fn desktop_command(
             let streams = state.streams.clone();
             let warm = second_pass_language(&state, &speech)?;
             tauri::async_runtime::spawn_blocking(move || {
-                let started = speech.start_stream().and_then(|session| streams.start(session));
+                let started = speech
+                    .start_stream()
+                    .and_then(|session| streams.start(session));
                 match started {
                     Ok(id) => {
                         if let Some(language) = warm {
@@ -614,8 +628,7 @@ async fn desktop_command(
         }
         "stream-push" => {
             let id = arg(&args, 0).as_u64().ok_or("Invalid stream session")?;
-            let pcm: Vec<i16> =
-                serde_json::from_value(arg(&args, 1)).map_err(|e| e.to_string())?;
+            let pcm: Vec<i16> = serde_json::from_value(arg(&args, 1)).map_err(|e| e.to_string())?;
             let streams = state.streams.clone();
             tauri::async_runtime::spawn_blocking(move || match streams.push(id, &pcm) {
                 Ok(draft) => Ok(json!({"success":true,"draft":draft})),
@@ -635,7 +648,11 @@ async fn desktop_command(
             tauri::async_runtime::spawn_blocking(move || {
                 let outcome = streams.take(id).and_then(|mut finished| {
                     if two_pass {
-                        speech.finish_stream_two_pass(&mut finished.session, &finished.pcm, &language)
+                        speech.finish_stream_two_pass(
+                            &mut finished.session,
+                            &finished.pcm,
+                            &language,
+                        )
                     } else {
                         let seconds = finished.seconds();
                         speech.finish_stream(&mut finished.session, &language, seconds)
@@ -643,7 +660,11 @@ async fn desktop_command(
                 });
                 match outcome {
                     Ok(result) => {
-                        let _ = logging::speech(&speech_logs, "info", "Streaming transcription completed");
+                        let _ = logging::speech(
+                            &speech_logs,
+                            "info",
+                            "Streaming transcription completed",
+                        );
                         value(result)
                     }
                     Err(error) => {
