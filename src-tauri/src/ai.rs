@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 const OPENAI_DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 const GOOGLE_AI_DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta/openai";
 const OPENAI_DEFAULT_MODEL: &str = "gpt-3.5-turbo";
-const GOOGLE_AI_DEFAULT_MODEL: &str = "gemini-2.5-flash";
+const GOOGLE_AI_DEFAULT_MODEL: &str = "gemini-3.8-flash";
 
 fn is_google_config(config: &Value, raw_base: Option<&str>) -> bool {
     raw_base.is_some_and(|b| {
@@ -62,6 +62,7 @@ fn build_request_payload(
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.3,
+            "reasoning_effort": "low",
             "stream": false
         })
     } else {

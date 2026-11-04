@@ -30,7 +30,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data:; connect-src ipc: http://ipc.localhost http://localhost:5173 ws://localhost:5173; media-src 'self' blob:; font-src 'self' data:"
+      "csp": "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data:; connect-src ipc: http://ipc.localhost http://localhost:5173 ws://localhost:5173; media-src 'self' blob:; font-src 'self' data:"
     }
   },
   "bundle": {
